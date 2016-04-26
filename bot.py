@@ -276,15 +276,6 @@ async def server(ctx):
 @bot.command(pass_context=True)
 async def eval(self, code):
     """eval JS code in Node.JS"""
-    # if str(runtime) == "js":
-    #     execute = execjs.eval(str(code))
-    #     await bot.say(execute)
-    # elif str(runtime) == "node":
-    #     node = execjs.get("Node")
-    #     execute = node.eval(str(code))
-    #     print("works")
-    #     await bot.say(execute)
-    # else:
     code_clean = "{0}".format(code.strip("```"))
     node = execjs.get("Node")
     execute = node.eval(str(code_clean))
