@@ -202,7 +202,7 @@ async def on_message(message):
             print("cleverbot ad, not responding")
         else:
             await bot.send_message(channel, msg)
-    await bot.process_commands(message)
+    await bot.process_commands(message) #cuz the coroutine needs to be called again https://github.com/Rapptz/discord.py/issues/186
 
 @bot.command(pass_context=True)
 async def cb(ctx, option):
@@ -279,9 +279,9 @@ async def eval(self, code):
     code_clean = "{0}".format(code.strip("```"))
     node = execjs.get("Node")
     execute = node.eval(str(code_clean))
-    try:
-        await bot.say(execute)
-    except Exception as e: bot.say("```{0}".format(str(e)))
+    # try:
+    await bot.say(execute)
+    # except Exception as e: bot.say("```{0}".format(str(e)))
 
 @bot.command(pass_context=True)
 async def maymay(ctx, name, direct=None):
