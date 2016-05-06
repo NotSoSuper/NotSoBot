@@ -189,12 +189,15 @@ async def on_command(command, ctx):
         msg = "User: {0} <{1}>\n".format(ctx.message.author, ctx.message.author.id).replace("'", "")
         msg += "Time: {0}\n".format(ctx.message.timestamp)
         msg += "Command: {0}\n".format(ctx.invoked_with)
-        msg += "Server: {0}\n".format(ctx.message.server.name).replace("'", "")
-        msg += "Channel: {0}\n".format(ctx.message.channel.name).replace("'", "")
+        if ctx.message.channel.is_private:
+            msg += "Server: Private Message\n"
+        else:
+            msg += "Server: {0}\n".format(ctx.message.server.name).replace("'", "")
+            msg += "Channel: {0}\n".format(ctx.message.channel.name).replace("'", "")
         msg += "Context Message: {0}".format(ctx.message.content).replace("'", "")
         target = discord.Object(id='176568820452950016')
         await bot.send_message(target, cool.format(msg))
-        if ctx.message.server.name == "Server Name" and ctx.channel.name != "test":
+        if ctx.message.channel.is_private == False and ctx.message.server.name == "name" and ctx.channel.name != "test":
             await asyncio.sleep(120)
             async for message in bot.logs_from(ctx.message.channel, limit=50):
                 if message.author == bot.user:
@@ -202,6 +205,11 @@ async def on_command(command, ctx):
                     await asyncio.sleep(0.4)
     except Exception as e:
         print(e)
+
+@bot.event
+async def on_command_error(exception, ctx):
+    if isinstance(exception, commands.CommandNotFound):
+        await bot.send_message(ctx.message.channel, "Error: Command `{0}` Not Found!".format(ctx.invoked_with))
 
 class Default():
     def __init__(self, bot):
