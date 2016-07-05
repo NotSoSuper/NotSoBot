@@ -309,7 +309,7 @@ class Utils():
               }
           }
       }
-      headers = {'Authorization': 'token a6221d918b1d5806163061881106f4cb33ed593c'}
+      headers = {'Authorization': 'token nothingtoseehere'}
       async with aiohttp.post('https://api.github.com/gists', data=json.dumps(gist), headers=headers) as gh:
           if gh.status != 201:
               await self.bot.say('Could not create gist.')
