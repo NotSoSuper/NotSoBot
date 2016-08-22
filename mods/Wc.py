@@ -1,16 +1,31 @@
 import asyncio
+import aiohttp
 import discord
 import random
 import io
-from os import path
-from PIL import Image
+import magic
+import requests
+import os
+import PIL.Image
 import numpy as np
+from tempfile import mkstemp
+from io import StringIO
+from io import BytesIO
 from discord.ext import commands
 from utils import checks
 from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
 
 cool = "```xl\n{0}\n```"
 code = "```py\n{0}\n```"
+
+image_mimes = ['image/png', 'image/pjpeg', 'image/jpeg', 'image/x-icon']
+def isimage(url:str):
+  r = requests.get(url, stream=True)
+  mime = magic.from_buffer(next(r.iter_content(256)), mime=True).decode()
+  if any([mime == x for x in image_mimes]):
+    return True
+  else:
+    return False
 
 async def download(url:str, path:str):
 	with aiohttp.ClientSession() as session:
@@ -20,55 +35,64 @@ async def download(url:str, path:str):
 				f.write(data)
 				f.close()
 
+async def bytes_download(link:str):
+  with aiohttp.ClientSession() as session:
+    async with session.get(link) as resp:
+      data = await resp.read()
+      b = BytesIO(data)
+      b.seek(0)
+      return b
+
 class Wc():
 	def __init__(self, bot):
 		self.bot = bot
 
-	#https://github.com/amueller/word_cloud/
 	@commands.group(pass_context=True, name='wc', aliases=['wordcloud', 'wordc'], invoke_without_command=True)
-	async def wc(self, ctx, max_messages:int=50):
-		text_path = '/root/discord/files/wc.txt'
+	async def wc(self, ctx, max_messages:int=100):
+		if max_messages > 1500:
+			await self.bot.say("2 many messages")
+			return
+		results = ''
 		async for message in self.bot.logs_from(ctx.message.channel, limit=max_messages):
-			s = message.content.split()
-			line = s[0]+"\n"
-			with io.open(text_path, "a", encoding='utf8') as f:
-				f.write(line)
-				f.close()
-		text = open(text_path).read()
-		rand = str(random.randint(0, 100))
-		wc = WordCloud(background_color="gray", max_words=100, max_font_size=20)
-		wc.generate(text)
-		path = '/root/discord/files/wc_final_{0}.png'.format(rand)
-		wc.to_file(path)
-		await self.bot.send_file(ctx.message.channel, path, filename='wordcloud.png')
-		os.remove(text_path)
-		os.remove(path)
+			split = message.content.split()
+			for s in split:
+				results += s+'\n'
+		text = results.split('\n')
+		wc = WordCloud(background_color="black", width=1280, height=960, max_words=500).generate(' '.join(text))
+		final = '/tmp/wc_{0}.png'.format(random.randint(0, 9999))
+		wc.to_file(final)
+		await self.bot.send_file(ctx.message.channel, final, filename='wordcloud.png')
+		os.remove(final)
 
 	@wc.command(name='custom', pass_context=True, invoke_without_command=True)
-	async def _wc_custom(self, ctx, url:str, max_messages:int=50):
-		text_path = '/root/discord/files/wc.txt'
-		async for message in self.bot.logs_from(ctx.message.channel, limit=max_messages):
-			s = message.content.split()
-			line = s[0]
-			with io.open(text_path, "a", encoding='utf8') as f:
-				f.write(line)
-				f.close()
-		text = open(text_path).read()
-		rand = str(random.randint(0, 100))
-		if url == ":eyes:":
-			image_path = '/root/discord/files/emoji_eyes.png'
-		else:
-			image_path = '/root/discord/files/wc_custom_{0}.png'.format(rand)
-			await download(url, image_path)
-		coloring = np.array(Image.open(image_path))
-		wc = WordCloud(background_color="white", max_words=100, mask=coloring, max_font_size=20, random_state=42)
-		wc.generate(text)
-		path = '/root/discord/files/wc_custom_final_{0}.png'.format(rand)
-		wc.to_file(path)
-		await self.bot.send_file(ctx.message.channel, path, filename='wordcloud_custom.png')
-		os.remove(text_path)
-		os.remove(image_path)
-		os.remove(path)
+	async def _wc_custom(self, ctx, url:str, max_messages:int=100):
+		try:
+			if max_messages > 1500:
+				await self.bot.say("2 many messages")
+				return
+			results = ''
+			async for message in self.bot.logs_from(ctx.message.channel, limit=max_messages):
+				split = message.content.split()
+				for s in split:
+					results += s+'\n'
+			text = results.split('\n')
+			eyes = False
+			if url == "👀" or url == ":eyes:":
+				image = '/root/discord/files/eyes_wc.png'
+				eyes = True
+			else:
+				if isimage(url) == False:
+					await self.bot.say("Invalid or Non-Image!")
+					return
+				image = await bytes_download(url)
+			coloring = np.array(PIL.Image.open(image))
+			wc = WordCloud(background_color="white", width=1280, height=960, max_words=500, mask=coloring).generate(' '.join(text))
+			final = '/tmp/wc_{0}.png'.format(random.randint(0, 9999))
+			wc.to_file(final)
+			await self.bot.send_file(ctx.message.channel, final, filename='wordcloud_custom.png')
+			os.remove(final)
+		except Exception as e:
+			print(e)
 
 def setup(bot):
 	bot.add_cog(Wc(bot))

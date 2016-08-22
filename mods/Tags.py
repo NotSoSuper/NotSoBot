@@ -5,21 +5,17 @@ import os
 import re
 import random
 import math
+import io
 import sys, traceback
+import linecache
+from io import StringIO
+from itertools import islice, cycle
 from subprocess import check_output
 from discord.ext import commands
 from utils import checks
 
 cool = "```xl\n{0}\n```"
 code = "```py\n{0}\n```"
-
-connection = pymysql.connect(host='',
-                     user='',
-                     password='',
-                     db='',
-                     charset='',
-                     cursorclass=pymysql.cursors.DictCursor)
-cursor = connection.cursor()
 
 sql_injection = ['DROP', 'FROM', 'TABLE', 'SELECT', 'SELECT *', 'ALTER', 'UPDATE', 'INSERT', 'DELETE']
 
@@ -31,7 +27,11 @@ def check_int(k):
 class Tags():
 	def __init__(self, bot):
 		self.bot = bot
-	
+		self.connection = bot.mysql.connection
+		self.cursor = bot.mysql.cursor
+		self.discord_path = bot.path.discord
+		self.files_path = bot.path.files
+
 	def tag_formatter(self, s:str):
 		if len(s) > 1500:
 			return s[:1500]+"\n:warning: Tag Truncated\nTag Text limit <= 1500"
@@ -40,9 +40,6 @@ class Tags():
 		s = u'\u180E' + s
 		s = s.replace('@everyone', '@\u200beveryone')
 		s = s.replace('@here', '@\u200bhere')
-		# s = s.replace('<@', '<@\u200b')
-		# s = s.replace('<@!', '<@!\u200b')
-		s = s.replace('fuck', 'fug')
 		s = s.replace("'", "\'")
 		s = s.replace('"', "'")
 		return s
@@ -216,19 +213,20 @@ class Tags():
 			return txt
 
 	@commands.group(pass_context=True, invoke_without_command=True, aliases=['t', 'ta', 'tags'])
-	async def tag(self, ctx, txt:str, *, after:str=None):
+	async def tag(self, ctx, txt:str, *after):
 		"""Base command for tags, call it with a valid tag to display a tag"""
+		txt = self.tag_formatter(txt)
 		exists_sql = 'SELECT tag FROM `tags` WHERE tag="{0}" AND server=""'
 		exists_sql = exists_sql.format(txt)
-		cursor.execute(exists_sql)
-		exists_result = cursor.fetchall()
+		self.cursor.execute(exists_sql)
+		exists_result = self.cursor.fetchall()
 		if len(exists_result) == 0:
 			await self.bot.say(":no_entry: Tag \"{0}\" does not exist!".format(txt))
 			return
 		check_sql = 'SELECT server FROM `tags` WHERE server={0} AND tag="{1}"'
 		check_sql = check_sql.format(ctx.message.server.id, txt)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		not_global = True
 		if len(check_result) == 0:
 			pass
@@ -240,12 +238,13 @@ class Tags():
 		else:
 			sql = 'SELECT content FROM `tags` WHERE server={0} AND tag="{1}"'
 			sql = sql.format(ctx.message.server.id, txt)
-		cursor.execute(sql)
-		result = cursor.fetchall()
+		self.cursor.execute(sql)
+		result = self.cursor.fetchall()
 		content = result[0]['content']
-		content = self.tag_formatter(content)
 		content = await self.parser(ctx, content, after)
-		await self.bot.say("**Tag: {0}**\n{1}".format(txt, content))
+		content = self.tag_formatter(content)
+		# await self.bot.say("**Tag: {0}**\n{1}".format(txt, content))
+		await self.bot.say("{0}".format(content))
 
 	@tag.command(name='add', aliases=['create', 'make'], pass_context=True)
 	async def _tag_add(self, ctx, tag:str=None, *, txt:str=None):
@@ -275,17 +274,17 @@ class Tags():
 		check_sql = check_sql.format(tag)
 		global_check_sql = 'SELECT server FROM `tags` WHERE server={0} AND tag="{1}"'
 		global_check_sql = global_check_sql.format(ctx.message.server.id, tag)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		if len(check_result) == 0:
-			cursor.execute(tag_sql, (ctx.message.author.id, tag, txt, ctx.message.server.id))
-			connection.commit()
+			self.cursor.execute(tag_sql, (ctx.message.author.id, tag, txt, ctx.message.server.id))
+			self.connection.commit()
 		else:
-			cursor.execute(global_check_sql)
-			global_result = cursor.fetchall()
+			self.cursor.execute(global_check_sql)
+			global_result = self.cursor.fetchall()
 			if len(global_result) == 0 and check_result[0]['server_created'] != ctx.message.server.id:
-				cursor.execute(server_sql, (ctx.message.server.id, ctx.message.author.id, tag, txt))
-				connection.commit()
+				self.cursor.execute(server_sql, (ctx.message.server.id, ctx.message.author.id, tag, txt))
+				self.connection.commit()
 			else:
 				await self.bot.say(":no_entry: Tag \"{0}\" already exists!".format(tag))
 				return
@@ -311,25 +310,25 @@ class Tags():
 		check_sql = check_sql.format(txt)
 		global_check_sql = 'SELECT server FROM `tags` WHERE server={0} AND tag="{1}"'
 		global_check_sql = global_check_sql.format(ctx.message.server.id, txt)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		if len(check_result) == 0 and txt != "all":
 			await self.bot.say(":x: Error: Tag \"{0}\" does not exists/you don't own it!".format(txt))
 			return
 		elif txt == "all":
-			cursor.execute(sql_all)
-			connection.commit()
+			self.cursor.execute(sql_all)
+			self.connection.commit()
 			await self.bot.say(":white_check_mark: Removed `all` of your tags")
 			return
 		else:
-			cursor.execute(global_check_sql)
-			global_result = cursor.fetchall()
+			self.cursor.execute(global_check_sql)
+			global_result = self.cursor.fetchall()
 			if len(global_result) == 0:
-				cursor.execute(sql)
-				connection.commit()
+				self.cursor.execute(sql)
+				self.connection.commit()
 			else:
-				cursor.execute(sql_server)
-				connection.commit()
+				self.cursor.execute(sql_server)
+				self.connection.commit()
 		await self.bot.say(":white_check_mark: Removed tag \"{0}\"".format(txt))
 
 	@tag.command(name='edit', pass_context=True)
@@ -360,20 +359,20 @@ class Tags():
 		check_sql = check_sql.format(tag, ctx.message.author.id)
 		global_check_sql = 'SELECT server FROM `tags` WHERE server={0} AND tag="{1}" AND id={2}'
 		global_check_sql = global_check_sql.format(ctx.message.server.id, tag, ctx.message.author.id)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		if len(check_result) == 0:
 			await self.bot.say(":x:	Error: Tag \"{0}\" does not exists/you don't own it!".format(tag))
 			return
 		else:
-			cursor.execute(global_check_sql)
-			global_result = cursor.fetchall()
+			self.cursor.execute(global_check_sql)
+			global_result = self.cursor.fetchall()
 			if len(global_result) == 0:
-				cursor.execute(edit_sql)
-				connection.commit()
+				self.cursor.execute(edit_sql)
+				self.connection.commit()
 			else:
-				cursor.execute(edit_server_sql)
-				connection.commit()
+				self.cursor.execute(edit_server_sql)
+				self.connection.commit()
 		await self.bot.say(":white_check_mark: Succesfuly edited tag \"{0}\"".format(tag))
 
 	@tag.command(name='view', aliases=['raw'], pass_context=True)
@@ -394,21 +393,21 @@ class Tags():
 		check_sql = check_sql.format(txt)
 		global_check_sql = 'SELECT server FROM `tags` WHERE server={0} AND tag="{1}"'
 		global_check_sql = global_check_sql.format(ctx.message.server.id, txt)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		if len(check_result) == 0:
 			await self.bot.say(":x:	Error: Tag \"{0}\" does not exists!".format(txt))
 			return
 		else:
-			cursor.execute(global_check_sql)
-			global_result = cursor.fetchall()
+			self.cursor.execute(global_check_sql)
+			global_result = self.cursor.fetchall()
 			if len(global_result) == 0:
-				cursor.execute(view_sql)
-				view_result = cursor.fetchall()
+				self.cursor.execute(view_sql)
+				view_result = self.cursor.fetchall()
 				content = view_result[0]['content']
 			else:
-				cursor.execute(view_server_sql)
-				view_server_result = cursor.fetchall()
+				self.cursor.execute(view_server_sql)
+				view_server_result = self.cursor.fetchall()
 				content = view_server_result[0]['content']
 		content = self.tag_formatter(content)
 		await self.bot.say("**Raw Tag \"{0}\"**\n{1}".format(txt, content))
@@ -431,21 +430,21 @@ class Tags():
 		check_sql = check_sql.format(txt)
 		global_check_sql = 'SELECT server FROM `tags` WHERE server={0} AND tag="{1}"'
 		global_check_sql = global_check_sql.format(ctx.message.server.id, txt)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		if len(check_result) == 0:
 			await self.bot.say(":x:	Error: Tag \"{0}\" does not exists!".format(txt))
 			return
 		else:
-			cursor.execute(global_check_sql)
-			global_result = cursor.fetchall()
+			self.cursor.execute(global_check_sql)
+			global_result = self.cursor.fetchall()
 			if len(global_result) == 0:
-				cursor.execute(view_sql)
-				view_result = cursor.fetchall()
+				self.cursor.execute(view_sql)
+				view_result = self.cursor.fetchall()
 				content = view_result[0]['content']
 			else:
-				cursor.execute(view_server_sql)
-				view_server_result = cursor.fetchall()
+				self.cursor.execute(view_server_sql)
+				view_server_result = self.cursor.fetchall()
 				content = view_server_result[0]['content']
 		content = self.tag_formatter(content)
 		await self.bot.say("**Raw Tag \"{0}\"**\n".format(txt)+code.format(content))
@@ -458,8 +457,8 @@ class Tags():
 			sql = sql.format(ctx.message.author.id, ctx.message.server.id)
 		else:
 			sql = sql.format(user.id, ctx.message.server.id)
-		cursor.execute(sql)
-		result = cursor.fetchall()
+		self.cursor.execute(sql)
+		result = self.cursor.fetchall()
 		if len(result) == 0 and user == None:
 			await self.bot.say(":no_entry: {0} does not own any tags!".format(ctx.message.author.mention))
 			return
@@ -468,12 +467,26 @@ class Tags():
 			return
 		results = ""
 		mention = False
+		tag_len = 0
 		for s in result:
-		  s['tag'] = s['tag'].replace('@everyone', '@\u200beveryone').replace('@here', '@\u200bhere')
-		  if "<@" in s['tag']:
-		    results += s['tag'] + " "
-		  else:
-		    results += "`" + s['tag'] + "` "
+			tag_len += len(s['tag'])
+		if tag_len > 1500:
+			for s in result:
+			  results += s['tag'] + "\n"
+			txt = StringIO(results.encode('utf-8'))
+			if user == None:
+				await self.bot.send_file(ctx.message.channel, txt.getvalue(), content=':warning: Tag list too large for discord text, results uploaded.', filename='taglist_{0}.txt'.format(ctx.message.author.name))
+			else:
+				await self.bot.send_file(ctx.message.channel, txt.getvalue(), content=':warning: Tag list too large for discord text, results uploaded.', filename='taglist_{0}.txt'.format(user.name))
+			del txt
+			return
+		else:
+			for s in result:
+			  s['tag'] = s['tag'].replace('@everyone', '@\u200beveryone').replace('@here', '@\u200bhere')
+			  if "<@" in s['tag']:
+			    results += s['tag'] + " "
+			  else:
+			    results += "`" + s['tag'] + "` "
 		if user == None:
 			await self.bot.say("**List of {0}'s Tags**\n{1}".format(ctx.message.author.mention, results))
 		else:
@@ -483,20 +496,17 @@ class Tags():
 	async def _tag_list_all(self, ctx):
 		"""List All Tags"""
 		sql = 'SELECT tag FROM `tags`'
-		cursor.execute(sql)
-		result = cursor.fetchall()
+		self.cursor.execute(sql)
+		result = self.cursor.fetchall()
 		if len(result) == 0:
 			await self.bot.say(":no_entry: There are no tags!".format(ctx.message.author.mention))
 			return
 		results = ""
 		mention = False
 		for s in result:
-		  s['tag'] = s['tag'].replace('@everyone', '@\u200beveryone').replace('@here', '@\u200bhere')
-		  if "<@" in s['tag']:
-		    results += s['tag'] + " "
-		  else:
-		    results += "`" + s['tag'] + "` "
-		await self.bot.say("**List of All Tags**\n{1}".format(ctx.message.author.mention, results))
+			results += s['tag'] + "\n"
+		txt = StringIO(results.encode('utf-8'))
+		await self.bot.send_file(ctx.message.channel, txt.getvalue(), content=':warning: All tags.', filename='tags.txt')
 
 	@tag.command(name='owner', aliases=['whoowns', 'whomade'], pass_context=True)
 	async def _tag_owner(self, ctx, *, txt:str):
@@ -513,34 +523,39 @@ class Tags():
 		check_sql = check_sql.format(txt)
 		global_check_sql = 'SELECT server FROM `tags` WHERE server={0} AND tag="{1}"'
 		global_check_sql = global_check_sql.format(ctx.message.server.id, txt)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		if len(check_result) == 0:
 			await self.bot.say(":x:	Error: Tag \"{0}\" does not exists!".format(txt))
 			return
 		else:
-			cursor.execute(global_check_sql)
-			global_result = cursor.fetchall()
+			self.cursor.execute(global_check_sql)
+			global_result = self.cursor.fetchall()
 			if len(global_result) == 0:
-				cursor.execute(owner_sql)
-				result = cursor.fetchall()
+				self.cursor.execute(owner_sql)
+				result = self.cursor.fetchall()
 				tag_owner = result[0]['id']
 			else:
-				cursor.execute(owner_server_sql)
-				result = cursor.fetchall()
+				self.cursor.execute(owner_server_sql)
+				result = self.cursor.fetchall()
 				tag_owner = result[0]['id']
-		user = discord.Server.get_member(ctx.message.server, user_id=tag_owner)
+		user = None
+		for server in self.bot.servers:
+			if user == None:
+				user = discord.Server.get_member(server, user_id=tag_owner)
+			else:
+				break
 		if user == None:
-			await self.bot.say(":white_check_mark: Tag \"{0}\" is owned by <@{1}>".format(txt, tag_owner))
+			await self.bot.say(":white_check_mark: Tag \"{0}\" is owned by <@{1}> (Not on any servers I'm on)".format(txt, tag_owner))
 		else:
-			await self.bot.say(":white_check_mark: Tag \"{0}\" is owned by {1}".format(txt, user.mention))
+			await self.bot.say(":white_check_mark: Tag \"{0}\" is owned by {1}".format(txt, user))
 
 	@tag.command(name='random', pass_context=True, invoke_without_command=True)
 	async def _tag_random(self, ctx):
 		"""Random tag"""
 		sql = "SELECT * FROM `tags` ORDER BY RAND() LIMIT 1"
-		cursor.execute(sql)
-		result = cursor.fetchall()
+		self.cursor.execute(sql)
+		result = self.cursor.fetchall()
 		tag = result[0]['tag']
 		content = result[0]['content']
 		content = self.tag_formatter(content)
@@ -555,10 +570,10 @@ class Tags():
 		  if s in txt:
 		    await self.bot.say("Error: `Exploit Detected`\nPlease try another tag.")
 		    return
-		sql = "SELECT * FROM `tags` WHERE tag LIKE '{0}'"
+		sql = "SELECT * FROM `tags` WHERE tag LIKE '%{0}%'"
 		sql = sql.format(txt)
-		cursor.execute(sql)
-		result = cursor.fetchall()
+		self.cursor.execute(sql)
+		result = self.cursor.fetchall()
 		if len(result) == 0:
 			await self.bot.say(":exclamation: No results found for tags like `{0}`".format(txt))
 			return
@@ -567,7 +582,19 @@ class Tags():
 			owner_id = s['id']
 			tag = s['tag']
 			tag = self.tag_formatter(tag)
-			results += "Tag: {0} | Owner: <@{1}>\n".format(tag, owner_id)
+			if owner_id == ctx.message.author.id:
+				results += "Tag: `{0}` | Owner: <@{1}>\n".format(tag, owner_id)
+			else:
+				user = None
+				for server in self.bot.servers:
+					if user == None:
+						user = discord.Server.get_member(server, user_id=owner_id)
+					else:
+						break
+				if user != None:
+					results += "Tag: {0} | Owner: `{1}`\n".format(tag, user)
+				else:
+					results += "Tag: {0} | Owner: <@{1}>\n".format(tag, owner_id)
 		await self.bot.say("**Results For Tags Like `{0}`**\n{1}".format(txt, results))
 
 	@_tag_search.command(name='content', pass_context=True)
@@ -576,10 +603,10 @@ class Tags():
 		  if s in txt:
 		    await self.bot.say("Error: `Exploit Detected`\nPlease try another tag.")
 		    return
-		sql = 'SELECT * FROM `tags` WHERE content LIKE "{0}"'
+		sql = 'SELECT * FROM `tags` WHERE content LIKE "%{0}%"'
 		sql = sql.format(txt)
-		cursor.execute(sql)
-		result = cursor.fetchall()
+		self.cursor.execute(sql)
+		result = self.cursor.fetchall()
 		if len(result) == 0:
 			await self.bot.say(":exclamation: No results found for tags with content like `{0}`".format(txt))
 			return
@@ -606,20 +633,20 @@ class Tags():
 		check_sql = check_sql.format(txt)
 		global_check_sql = 'SELECT server FROM `tags` WHERE server={0} AND tag="{1}"'
 		global_check_sql = global_check_sql.format(ctx.message.server.id, txt)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		if len(check_result) == 0:
 			await self.bot.say(":x:	Error: Tag \"{0}\" does not exists!".format(txt))
 			return
 		else:
-			cursor.execute(global_check_sql)
-			global_result = cursor.fetchall()
+			self.cursor.execute(global_check_sql)
+			global_result = self.cursor.fetchall()
 			if len(global_result) == 0:
-				cursor.execute(sql)
-				connection.commit()
+				self.cursor.execute(sql)
+				self.connection.commit()
 			else:
-				cursor.execute(sql_server)
-				connection.commit()
+				self.cursor.execute(sql_server)
+				self.connection.commit()
 		await self.bot.say(":white_check_mark: Force Removed Tag \"{0}\"".format(txt))
 
 	@_tag_fm.command(name='user', pass_context=True)
@@ -639,47 +666,47 @@ class Tags():
 		check_sql = check_sql.format(txt, owner_id)
 		global_check_sql = 'SELECT server FROM `tags` WHERE server={0} AND id={1} AND tag="{2}"'
 		global_check_sql = global_check_sql.format(ctx.message.server.id, owner_id, txt)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		if len(check_result) == 0:
 			await self.bot.say(":x:	Error: Tag \"{0}\" by user `{1}` does not exists!".format(txt, user.name))
 			return
 		else:
-			cursor.execute(global_check_sql)
-			global_result = cursor.fetchall()
+			self.cursor.execute(global_check_sql)
+			global_result = self.cursor.fetchall()
 			if len(global_result) == 0:
-				cursor.execute(sql)
-				connection.commit()
+				self.cursor.execute(sql)
+				self.connection.commit()
 			else:
-				cursor.execute(sql_server)
-				connection.commit()
+				self.cursor.execute(sql_server)
+				self.connection.commit()
 		await self.bot.say(":white_check_mark: Force Removed Tag \"{0}\" owned by `{1}`".format(txt, user.name))
 
 	@tag.command(name='gift', pass_context=True)
 	async def _tag_gift(self, ctx, tag:str, user:discord.User):
 		"""Gift/Give a Tag to a User\nTransfer Ownership"""
-		edit_sql = 'UPDATE `tags` SET id={0} WHERE tag="{1}" AND id={0} AND server=""'
-		edit_sql = edit_sql.format(user.id, tag)
-		edit_server_sql = 'UPDATE `tags` SET id={3} WHERE server={0} AND tag="{1}" AND id={2}'
-		edit_server_sql = edit_server_sql.format(ctx.message.server.id, tag, ctx.message.author.id, user.id)
+		sql = 'UPDATE `tags` SET id={0} WHERE tag="{1}" AND id={0} AND server=""'
+		sql = sql.format(user.id, tag)
+		server_sql = 'UPDATE `tags` SET id={3} WHERE server={0} AND tag="{1}" AND id={2}'
+		server_sql = server_sql.format(ctx.message.server.id, tag, ctx.message.author.id, user.id)
 		check_sql = 'SELECT tag FROM `tags` WHERE tag="{0}" AND id={1} AND server=""'
 		check_sql = check_sql.format(tag, ctx.message.author.id)
 		global_check_sql = 'SELECT server FROM `tags` WHERE server={0} AND tag="{1}" AND id={2}'
 		global_check_sql = global_check_sql.format(ctx.message.server.id, tag, ctx.message.author.id)
-		cursor.execute(check_sql)
-		check_result = cursor.fetchall()
+		self.cursor.execute(check_sql)
+		check_result = self.cursor.fetchall()
 		if len(check_result) == 0:
 			await self.bot.say(":x:	Error: Tag \"{0}\" does not exists/you don't own it!".format(tag))
 			return
 		else:
-			cursor.execute(global_check_sql)
-			global_result = cursor.fetchall()
+			self.cursor.execute(global_check_sql)
+			global_result = self.cursor.fetchall()
 			if len(global_result) == 0:
-				cursor.execute(sql)
-				connection.commit()
+				self.cursor.execute(sql)
+				self.connection.commit()
 			else:
-				cursor.execute(sql_server)
-				connection.commit()
+				self.cursor.execute(server_sql)
+				self.connection.commit()
 		await self.bot.say(":white_check_mark: Gifted Tag \"{0}\" to {1}".format(tag, user.mention))
 
 def setup(bot):

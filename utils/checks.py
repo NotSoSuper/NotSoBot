@@ -1,6 +1,7 @@
 from discord.ext import commands
 import discord.utils
 import json
+import os
 
 class No_Owner(commands.CommandError): pass
 class No_Perms(commands.CommandError): pass
@@ -9,8 +10,9 @@ class No_Admin(commands.CommandError): pass
 class No_Mod(commands.CommandError): pass
 class No_Sup(commands.CommandError): pass
 class No_ServerandPerm(commands.CommandError): pass
+class Nsfw(commands.CommandError): pass
 
-with open("/root/discord/utils/config.json") as f:
+with open(os.path.join(os.getenv('discord_path', '~/discord/'), "utils/config.json")) as f:
   config = json.load(f)
 
 def is_owner_check(message):
@@ -85,3 +87,18 @@ def sup(ctx):
   if server.id == "197938366530977793":
     return True
   raise No_Sup()
+
+def nsfw():
+  def predicate(ctx):
+    channel = ctx.message.channel
+    if channel.is_private:
+      return True
+    if channel.name.lower() == 'nsfw':
+      return True
+    if channel.topic != None:
+      if '{nsfw}' in channel.topic.lower() or '[nsfw]' in channel.topic.lower() or 'nsfw' == channel.topic.lower():
+        return True
+      if 'nsfw' in channel.topic.split() and 'sfw' not in channel.topic.split():
+        return True
+    raise Nsfw()
+  return commands.check(predicate)

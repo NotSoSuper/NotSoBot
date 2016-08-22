@@ -30,6 +30,7 @@ class AnimatedGif:
 
   def split_gif(self):
     for i, frame in enumerate(self.get_frames()):
+      #frame.save(self.im[:-3] + 'ASCII%d.png' % i,**frame.info)
       self.frames.append(create_ascii_image(frame))
 
   def construct_frames(self):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
  
 import sys
+#import cv2
 import subprocess
 from subprocess import call
 import aalib 

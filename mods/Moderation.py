@@ -7,60 +7,48 @@ import time
 import io
 import random
 import aiohttp
+import re
+import os
 from datetime import datetime
 from discord.ext import commands
 from utils import checks
 
-with open("/root/discord/utils/config.json") as f:
-    config = json.load(f)
+with open(os.path.join(os.getenv('discord_path', '~/discord/'), "utils/config.json")) as f:
+  config = json.load(f)
 
 cool = "```xl\n{0}\n```"
 code = "```py\n{0}\n```"
 
-connection = pymysql.connect(host='',
-                     user='',
-                     password='',
-                     db='',
-                     charset='',
-                     cursorclass=pymysql.cursors.DictCursor)
-cursor = connection.cursor()
-
 class Moderation():
   def __init__(self,bot):
     self.bot = bot
+    self.connection = bot.mysql.connection
+    self.cursor = bot.mysql.cursor
+    self.discord_path = bot.path.discord
+    self.files_path = bot.path.files
 
   @commands.command(pass_context=True)
   @checks.mod_or_perm(manage_messages=True)
   async def clean(self, ctx, max_messages:int):
     """Removes inputed amount of bot messages."""
     if max_messages > 1500:
-        await self.bot.say("2 many messages")
-    max_messages = max_messages + 1
-    async for message in self.bot.logs_from(ctx.message.channel, limit=max_messages):
+      await self.bot.say("2 many messages")
+      return
+    count = 0
+    async for message in self.bot.logs_from(ctx.message.channel, limit=max_messages+1):
       if message.author == self.bot.user:
         asyncio.ensure_future(self.bot.delete_message(message))
         await asyncio.sleep(0.21)
-    await self.bot.say("Removed any of my messages found within ``{0}`` messages".format(max_messages))
+        count += 1
+    x = await self.bot.say("Removed `{0}` messages out of `{1}` searched messages".format(count, max_messages))
+    await asyncio.sleep(10)
+    try:
+      await self.bot.delete_message(ctx.message)
+    except:
+      pass
+    await self.bot.delete_message(x)
 
-  # @commands.command(pass_context=True)
-  # @checks.mod_or_perm(manage_messages=True)
-  # async def prune(self, ctx, max_messages:int):
-  #     """Removes inputed amount of channel messages."""
-  #     try:
-  #         if ctx.message.server.me.permissions_in(ctx.message.channel).manage_messages:
-  #             if max_messages > 1000:
-  #                 await self.bot.say("2 many messages")
-  #             max_messages = max_messages + 1
-  #             async for message in self.bot.logs_from(ctx.message.channel, limit=max_messages):
-  #                 asyncio.ensure_future(self.bot.delete_message(message))
-  #                 await asyncio.sleep(0.4)
-  #             await self.bot.say("Removed ``{0}`` channel messages".format(max_messages))
-  #         else:
-  #             await self.bot.say("Sorry, this doesn't work on this server (No manage_messages Permission)!")          
-  #     except Exception as e:
-  #         await self.bot.say(code.format(type(e).__name__ + ': ' + str(e)))
-
-  @commands.group(pass_context=True, invoke_without_command=True)
+  @commands.group(pass_context=True, invoke_without_command=True, aliases=['purge', 'deletemessages'])
   @checks.mod_or_perm(manage_messages=True)
   async def prune(self, ctx, max_messages:int=100):
     """Delete inputed amount of messages in a channel."""
@@ -71,35 +59,17 @@ class Moderation():
       await self.bot.say("2 many messages\nasshole")
       return
     message = ctx.message
-    await self.bot.purge_from(ctx.message.channel, before=ctx.message, limit=max_messages)
+    await self.bot.purge_from(ctx.message.channel, limit=max_messages)
     count = max_messages + 1
     x = await self.bot.say("ok, removed {0} messages".format(count))
     await asyncio.sleep(10)
+    try:
+      await self.bot.delete_message(ctx.message)
+    except:
+      pass
     await self.bot.delete_message(x)
 
-  # @prune.command(name='user', pass_context=True)
-  # @checks.mod_or_perm(manage_messages=True)
-  # async def _prune_user(self, ctx, max_messages:int=500, user:discord.User):
-  #   """Removes inputed amount of messages found of the inputed user."""
-  #   if ctx.message.server.me.permissions_in(ctx.message.channel).manage_messages == False:
-  #     await self.bot.say("Sorry, this doesn't work on this server (No manage_messages Permission)!")
-  #     return
-  #   if max_messages > 1500:
-  #     await self.bot.say("2 many messages")
-  #   async for message in self.bot.logs_from(ctx.message.channel, limit=max_messages):
-  #     count = max_messages - 1
-  #     if user.id == message.author.id:
-  #       asyncio.ensure_future(self.bot.delete_message(message))
-  #       count += 1
-  #       await asyncio.sleep(0.4)
-  #     elif count == 0:
-  #       await self.bot.say("No messages found by {0} \nwithin the given max message search amount!".format(user.name))
-  #       return
-  #   x = await self.bot.say("ok, removed `{0}` messages out of `{1}` searched for `{2}`".format(max_messages, user.name))
-  #   await asyncio.sleep(5)
-  #   await self.bot.delete_message(x)
-
-  @prune.command(name='user', pass_context=True)
+  @prune.command(name='user', pass_context=True, aliases='u')
   @checks.mod_or_perm(manage_messages=True)
   async def _prune_user(self, ctx, max_messages:int, *users:discord.User):
     """Removes inputed amount of messages found of the inputed user."""
@@ -111,13 +81,21 @@ class Moderation():
     for user in users:
       def m(k):
         return k.author == user
-      deleted = await self.bot.purge_from(ctx.message.channel, limit=max_messages, before=ctx.message, check=m)
+      deleted = await self.bot.purge_from(ctx.message.channel, limit=max_messages, check=m)
+      if len(deleted) == 0:
+        x = await self.bot.say("No messages found by {0} \nwithin the given max message search amount!".format(user.name))
+        await asyncio.sleep(10)
+        await self.bot.delete_message(x)
+        return
       x = await self.bot.say("ok, removed `{0}` messages out of `{1}` searched for `{2}`".format(str(len(deleted)), str(max_messages), user.name))
       await asyncio.sleep(10)
       await self.bot.delete_message(x)
+    try:
+      await self.bot.delete_message(ctx.message)
+    except:
+      pass
 
-  @commands.group(invoke_without_command=True)
-  @checks.is_owner()
+  @commands.group(invoke_without_command=True, aliases=['unblacklist'])
   async def blacklist(self):
     """Blacklist base command"""
     await self.bot.say("**Blacklist Base Command**\nCommands: `user, channel`\nUser: Owner Only\n\nChannel: manage_server permission, call once to blacklist a channel, again to unblacklist.")
@@ -126,38 +104,42 @@ class Moderation():
   @checks.is_owner()
   async def _blacklist_user(self, ctx, user:discord.User):
     """Unblacklist a user.\nOwner only ofc."""
-    if user.id == "<@{0}>".format(config["ownerid"]):
-      await self.bot.say("what are you doing @NotSoSuper?")
-    elif user.mention in open('/root/discord/utils/blacklist.txt').read():
-      f = open('/root/discord/utils/blacklist.txt', 'r')
+    if user.id == config["ownerid"]:
+      await self.bot.say("what are you doing NotSoSuper?")
+      return
+    blacklist_path = self.discord_path('utils/blacklist.txt')
+    if user.mention in open(blacklist_path).read():
+      f = open(blacklist_path, 'r')
       a = f.read()
       f.close()
       data = a.replace(user.mention, "")
-      f = open('/root/discord/utils/blacklist.txt', 'w')
+      f = open(blacklist_path, 'w')
       f.write(data)
       f.close()
       await self.bot.say("ok, unblacklisted {0}".format(user.mention))
     else:
-      with open("/root/discord/utils/blacklist.txt", "a") as f:
+      with open(blacklist_path, "a") as f:
         f.write(user.mention + "\n")
         f.close()
       await self.bot.say("ok, blacklisted {0}".format(user.mention))
 
   @blacklist.command(name='channel', pass_context=True)
   @checks.admin_or_perm(manage_server=True)
-  async def _blacklist_channel(self, ctx):
+  async def _blacklist_channel(self, ctx, chan:discord.Channel=None):
     """Blacklists a channel from the bot."""
-    chan = ctx.message.channel.id
-    if chan in open('/root/discord/utils/cblacklist.txt').read():
-      with open('/root/discord/utils/cblacklist.txt') as f:
-        s = f.read().replace(chan + "\n", '')
-      with open('/root/discord/utils/cblacklist.txt', "w") as f:
+    if chan == None:
+      chan = ctx.message.channel
+    blacklist_path = self.discord_path('utils/cblacklist.txt')
+    if chan.id in open(blacklist_path).read():
+      with open(blacklist_path) as f:
+        s = f.read().replace(chan.id + "\n", '')
+      with open(blacklist_path, "w") as f:
         f.write(s)
-      await self.bot.say("ok, unblacklisted channel {0.mention} `<{0.id}>`".format(ctx.message.channel))
+      await self.bot.say("ok, unblacklisted channel {0.mention} `<{0.id}>`".format(chan))
     else:
-      with open("/root/discord/utils/cblacklist.txt", "a") as f:
-        f.write('{0}\n'.format(chan))
-        await self.bot.say("ok, blacklisted channel {0.mention} `<{0.id}>`".format(ctx.message.channel))
+      with open(blacklist_path, "a") as f:
+        f.write('{0}\n'.format(chan.id))
+        await self.bot.say("ok, blacklisted channel {0.mention} `<{0.id}>`".format(chan))
 
   @commands.command(pass_context=True)
   @checks.mod_or_perm(manage_messages=True)
@@ -172,16 +154,16 @@ class Moderation():
       return
     sql_check = "SELECT id FROM `muted` WHERE server={0} AND id={1}"
     sql_check = sql_check.format(ctx.message.server.id, user.id)
-    cursor.execute(sql_check)
-    check_result = cursor.fetchall()
+    self.cursor.execute(sql_check)
+    check_result = self.cursor.fetchall()
     if len(check_result) == 0:
       pass
     else:
       await self.bot.say("{0} is already turned off!".format(user.mention))
       return
     sql = "INSERT INTO `muted` (`server`, `id`) VALUES (%s, %s)"
-    cursor.execute(sql, (ctx.message.server.id, user.id))
-    connection.commit()
+    self.cursor.execute(sql, (ctx.message.server.id, user.id))
+    self.connection.commit()
     await self.bot.say("ok, tuned off {0}".format(user.mention))
 
   @commands.command(pass_context=True)
@@ -197,16 +179,22 @@ class Moderation():
       return
     sql_check = "SELECT id FROM `muted` WHERE server={0} AND id={1}"
     sql_check = sql_check.format(ctx.message.server.id, user.id)
-    cursor.execute(sql_check)
-    check_result = cursor.fetchall()
+    self.cursor.execute(sql_check)
+    check_result = self.cursor.fetchall()
     if len(check_result) == 0:
       await self.bot.say("{0} is already turned on!".format(user.mention))
       return
     sql = "DELETE FROM `muted` WHERE server={0} AND id={1}"
     sql = sql.format(ctx.message.server.id, user.id)
-    cursor.execute(sql)
-    connection.commit()
-    await self.bot.say("ok, turned on {0}".format(user.mention))
+    self.cursor.execute(sql)
+    self.connection.commit()
+    x = await self.bot.say("ok, turned on `{0}`".format(user.name))
+    try:
+      await self.bot.delete_message(ctx.message)
+    except:
+      pass
+    await asyncio.sleep(10)
+    await self.bot.delete_message(x)
 
   async def on_message(self, message):
     if message.author == self.bot.user:
@@ -217,13 +205,15 @@ class Moderation():
       return
     sql = "SELECT id FROM `muted` WHERE server={0} AND id={1}"
     sql = sql.format(message.server.id, message.author.id)
-    cursor.execute(sql)
-    result = cursor.fetchall()
+    self.cursor.execute(sql)
+    result = self.cursor.fetchall()
     if len(result) == 0:
       return
     if result[0]['id'] == message.author.id:
-      await self.bot.delete_message(message)
-      print("deleted muted message")
+      try:
+        await self.bot.delete_message(message)
+      except:
+        pass
     else:
       return
 
@@ -239,7 +229,7 @@ class Moderation():
         overwrite = ctx.message.channel.overwrites_for(user)
         overwrite.send_messages = False
         await self.bot.edit_channel_permissions(ctx.message.channel, user, overwrite)
-        await self.bot.say("ok, muted {0}".format(user.mention))
+        await self.bot.say("ok, muted {0}".format(user))
       except discord.error.Forbidden:
         await self.bot.say(":no_entry: Bot does not have permission")
         return
@@ -252,10 +242,10 @@ class Moderation():
       await self.bot.say("Sorry, I do not have the manage_roles permission\n**Aborting**")
       return
     for user in users:
-      allow, deny = ctx.message.channel.overwrites_for(user)
-      allow.send_messages = True
-      await self.bot.edit_channel_permissions(ctx.message.channel, user, allow=allow)
-      await self.bot.say("ok, unmuted {0}".format(user.mention))
+      overwrite = ctx.message.channel.overwrites_for(user)
+      overwrite.send_messages = True
+      await self.bot.edit_channel_permissions(ctx.message.channel, user, overwrite)
+      await self.bot.say("ok, unmuted {0}".format(user))
 
   @commands.command(pass_context=True)
   @checks.admin_or_perm(manage_server=True)
@@ -276,9 +266,11 @@ class Moderation():
       return
     if len(users) == 0:
       await self.bot.say(":no_entry: You need to specify a user to give the role too.")
+    idk = []
     for user in users:
       await self.bot.add_roles(user, role)
-      await self.bot.say("ok, gave user `" + ", ".join(map(str, user.name)) + "` the role {0}".format(role.name))
+      idk.append(user.name)
+    await self.bot.say("ok, gave user(s) `" + ", ".join(idk) + "` the role {0}".format(role.name))
 
   @commands.command(pass_context=True)
   @checks.admin_or_perm(manage_server=True)
@@ -289,9 +281,11 @@ class Moderation():
       return
     if len(users) == 0:
       await self.bot.say("You need to add a person to remove the role from!")
+    idk = []
     for user in users:
       await self.bot.remove_roles(user, role)
-      await self.bot.say("ok, removed the role {0} from user `".format(role.name) + ", ".join(map(str, user.name))+"`")
+      idk.append(user.name)
+    await self.bot.say("ok, removed the role {0} from user(s) `{1}`".format(role.name, ', '.join(idk)))
 
   @commands.command(pass_context=True)
   @checks.admin_or_perm(manage_server=True)
@@ -330,9 +324,13 @@ class Moderation():
     if ctx.message.server.me.permissions_in(ctx.message.channel).manage_nicknames == False:
       await self.bot.say("Sorry, I do not have the manage_nicknames permission\n**Aborting**")
       return
+    await self.bot.say("this might take a while, pls wait")
     count = 0
     for member in ctx.message.server.members:
-      await self.bot.change_nickname(member, name)
+      try:
+        await self.bot.change_nickname(member, name)
+      except:
+        continue
       await asyncio.sleep(.21)
       count += 1
     await self.bot.say("ok, changed the nickname of `{0}` users to `{1}`".format(str(count), name))
@@ -344,10 +342,14 @@ class Moderation():
     if ctx.message.server.me.permissions_in(ctx.message.channel).manage_nicknames == False:
       await self.bot.say("Sorry, I do not have the manage_nicknames permission\n**Aborting**")
       return
+    await self.bot.say("this might take a while, pls wait")
     count = 0
     for member in ctx.message.server.members:
       if member.nick:
-        await self.bot.change_nickname(member,member.name)
+        try:
+          await self.bot.change_nickname(member,member.name)
+        except:
+          continue
         await asyncio.sleep(.21)
         count += 1
     await self.bot.say("ok, reset the nickname of `{0}` users".format(str(count), name))
@@ -356,7 +358,7 @@ class Moderation():
     if type == 1:
       gist = {
         'description': 'Message logs for Channel: "{2}" | \nUploaded from NotSoSuper\'s Bot by: {0} <{1}>.'.format(ctx.message.author.name, ctx.message.author.id, idk),
-        'public': True,
+        'public': 'false',
         'files': {
             'channel_logs_{0}.txt'.format(idk): {
                 'content': content
@@ -366,7 +368,7 @@ class Moderation():
     elif type == 2:
       gist = {
         'description': 'Message Logs for User: "{2}" | Channel: {3.name} <{3.id}> | \nUploaded from NotSoSuper\'s Bot by: {0} <{1}>.'.format(ctx.message.author.name, ctx.message.author.id, idk, ctx.message.channel),
-        'public': True,
+        'public': 'false',
         'files': {
             'logs_{0}.txt'.format(idk): {
                 'content': content
@@ -381,6 +383,7 @@ class Moderation():
         js = await gh.json()
         await self.bot.say('Uploaded to gist, URL: <{0[html_url]}>'.format(js))
 
+  mention_regex = re.compile(r'(<@((\!|\&)?[0-9]*?)>)')
   @commands.group(pass_context=True, invoke_without_command=True)
   @checks.mod_or_perm(manage_messages=True)
   async def logs(self, ctx, max_messages:int=500, channel:discord.Channel=None):
@@ -393,14 +396,31 @@ class Moderation():
       channel = ctx.message.channel
     count = 0
     rand = str(random.randint(0, 100))
-    path = "/root/discord/files/logs/clogs_{0}_{1}.txt".format(channel.name, rand)
+    path = self.files_path("logs/clogs_{0}_{1}.txt".format(channel.name, rand))
     open(path, 'w').close()
+    idk = True
     async for message in self.bot.logs_from(channel, limit=max_messages):
       with io.open(path, "a", encoding='utf8') as f:
-        line = "Server: {0.name} <{0.id}>\n".format(message.server)
-        line += "Channel: {0.name} <{0.id}>\n".format(message.channel)
+        line = ''
+        if idk:
+          line += "Server: {0.name} <{0.id}>\n".format(message.server)
+          line += "Channel: {0.name} <{0.id}>\n".format(message.channel)
+          idk = False
         line += "Time: {0}\n".format(message.timestamp)
         line += "Author: {0.name} <{0.id}>\n".format(message.author)
+        user = None
+        if self.mention_regex.search(message.content):
+          ss = self.mention_regex.search(message.content)
+          mention_id = ss.group(2)
+          if mention_id.startswith('!'):
+            mention_id = mention_id.replace('!', '')
+          for server in self.bot.servers:
+            if user == None:
+              user = discord.Server.get_member(server, user_id=mention_id)
+            else:
+              break
+          if user != None:
+            message.content = message.content.replace(ss.group(1), '{0.name}#{0.discriminator} (Discord mention converted)'.format(user))
         line += "Message: {0}\n\n".format(message.content)
         f.write(line)
         f.close()
@@ -410,34 +430,71 @@ class Moderation():
 
   @logs.command(name="user", pass_context=True)
   @checks.mod_or_perm(manage_messages=True)
-  async def _logs_user(self, ctx, max_messages:int=500, user:discord.User=None, channel:discord.Channel=None):
-    print("2")
-    if max_messages > 2500:
-      await self.bot.say("2 many messages (<= 2500)")
-      return
-    if user == None:
-      user = ctx.message.author
-    server = ctx.message.server
-    if channel == None:
-      channel = ctx.message.channel
-    count = 0
-    rand = str(random.randint(0, 100))
-    path = "/root/discord/files/logs/logs_{0}_{1}.txt".format(user.name, rand)
-    open(path, 'w').close()
-    async for message in self.bot.logs_from(channel, limit=max_messages):
-      if message.author != user:
-        continue
-      with io.open(path, "a", encoding='utf8') as f:
-        line = "Server: {0.name} <{0.id}>\n".format(message.server)
-        line += "Channel: {0.name} <{0.id}>\n".format(message.channel)
-        line += "Time: {0}\n".format(message.timestamp)
-        line += "Author: {0.name} <{0.id}>\n".format(message.author)
-        line += "Message: {0}\n\n".format(message.content)
-        f.write(line)
-        f.close()
-      count += 1
-    await self.gist_logs(ctx, 2, user.name, open(path).read())
-    await self.bot.send_file(ctx.message.channel, path, filename="logs_{0}.txt".format(user.name), content="ok, here is a file/gist of the last `{1}` messages for {0.name}#{0.discriminator}".format(user, count))
+  async def _logs_user(self, ctx, max_messages:int=500, user:str=None, channel:discord.Channel=None):
+    try:
+      if max_messages > 2500:
+        await self.bot.say("2 many messages (<= 2500)")
+        return
+      user_id = False
+      if user == None:
+        user = ctx.message.author
+      else:
+        if len(ctx.message.mentions) == 0:
+          user_id = True
+        else:
+          user = ctx.message.mentions[0]
+      server = ctx.message.server
+      if channel == None:
+        channel = ctx.message.channel
+      count = 0
+      rand = str(random.randint(0, 100))
+      path = self.files_path("logs/logs_{0}_{1}.txt".format(user, rand))
+      open(path, 'w').close()
+      idk = True
+      user_id_u = None
+      async for message in self.bot.logs_from(channel, limit=max_messages):
+        if user_id:
+          if message.author.id != user:
+            continue
+        else:
+          if message.author != user:
+            continue
+        if user_id:
+          user_id_u = message.author
+        with io.open(path, "a", encoding='utf8') as f:
+          line = ''
+          if idk:
+            line += "Server: {0.name} <{0.id}>\n".format(message.server)
+            line += "Channel: {0.name} <{0.id}>\n".format(message.channel)
+            idk = False
+          line += "Time: {0}\n".format(message.timestamp)
+          line += "Author: {0.name} <{0.id}>\n".format(message.author)
+          mention_user = None
+          if self.mention_regex.search(message.content):
+            ss = self.mention_regex.search(message.content)
+            mention_id = ss.group(2)
+            if mention_id.startswith('!'):
+              mention_id = mention_id.replace('!', '')
+            for server in self.bot.servers:
+              if mention_user == None:
+                mention_user = discord.Server.get_member(server, user_id=mention_id)
+              else:
+                break
+            if mention_user != None:
+              message.content = message.content.replace(ss.group(1), '{0.name}#{0.discriminator} (Discord mention converted)'.format(mention_user))
+          line += "Message: {0}\n\n".format(message.content)
+          f.write(line)
+          f.close()
+        count += 1
+      if user_id_u:
+        user = user_id_u
+      if count == 0:
+        await self.bot.say(":warning: No messages found within `{0}` searched for `{1}`!".format(max_messages, user))
+        return
+      await self.gist_logs(ctx, 2, user.name, open(path).read())
+      await self.bot.send_file(ctx.message.channel, path, filename="logs_{0}.txt".format(user.name), content="ok, here is a file/gist of the last `{1}` messages for {0.name}#{0.discriminator}".format(user, count))
+    except Exception as e:
+      await self.bot.say(code.format(e))
 
   @commands.group(pass_context=True, invoke_without_command=True)
   @checks.mod_or_perm(manage_server=True)
@@ -474,7 +531,11 @@ class Moderation():
           found = True
           break
     if found:
-      invite = await self.bot.create_invite(s)
+      try:
+        invite = await self.bot.create_invite(s)
+      except:
+        await self.bot.say("no perms")
+        return
       await self.bot.say(invite)
     else:
       await self.bot.say("no server found")
@@ -487,6 +548,7 @@ class Moderation():
     await self.bot.say(invite)
 
   @commands.group(pass_context=True, invoke_without_command=True)
+  @checks.mod_or_perm(manage_messages=True)
   async def pin(self, ctx, max_messages:int=1500, *, txt:str):
     """Attempt to find a Message by ID or Content and Pin it"""
     if ctx.message.server.me.permissions_in(ctx.message.channel).manage_messages == False:
@@ -606,6 +668,25 @@ class Moderation():
         await self.bot.say(":ok: Pinned First Message with date \"{0}\"!\n**Message Info**\nAuthor: `{1}`\nTime: `{2}`\nContent: \"{3}\"".format(str(_date), message.author.name, message.timestamp, message.content))
         return
     await self.bot.say(":exclamation: No first message found! \n*some shit fucked up*")
+
+  @commands.command(pass_context=True)
+  @checks.is_owner()
+  async def sql(self, ctx, *, sql:str):
+    """Debug SQL"""
+    try:
+      self.cursor.execute(sql)
+      results = self.cursor.fetchall()
+      await self.bot.say("**SQL RESULTS**\n"+str(results))
+      while True:
+        response = await self.bot.wait_for_message(author=ctx.message.author, channel=ctx.message.channel)
+        if response == "sql commit":
+          self.connection.commit()
+          await self.bot.say("commited")
+          return
+        else:
+          return
+    except Exception as e:
+      await self.bot.say(code.format(e))
 
 def setup(bot):
   bot.add_cog(Moderation(bot))
