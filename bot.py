@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-
 import sys
 import os
 import traceback
@@ -123,7 +122,8 @@ modules = [
   'mods.Changes',
   'mods.Markov',
   'mods.Verification',
-  'mods.Nsfw'
+  'mods.Nsfw',
+  'mods.Reminders'
 ]
 on_ready_write = False
 @bot.event
