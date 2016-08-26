@@ -2,12 +2,8 @@ import discord
 import asyncio
 import re
 import timestring
-import threading
-import time as tm
 from datetime import datetime
 from discord.ext import commands
-import sys
-import linecache
 
 code = "```py\n{0}\n```"
 
