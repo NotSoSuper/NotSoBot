@@ -110,5 +110,3 @@ class Stats:
 
 def setup(bot):
   bot.add_cog(Stats(bot))
-def setup(bot):
-  bot.add_cog(Stats(bot))
