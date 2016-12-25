@@ -1,5 +1,7 @@
 # Ignore everything
 *
+last_time*
+markov/*
 
 # But not these files...
 !.gitignore

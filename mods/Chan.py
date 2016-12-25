@@ -1,17 +1,9 @@
-import asyncio
 import requests
-import json
 import random
-import discord
-import html
 import re
-import random
-import time
-import urllib.request
-from random import choice
 from discord.ext import commands
 from lxml.html import fromstring
-from re import sub
+from mods.cog import Cog
 
 code = "```py\n{0}\n```"
 
@@ -34,7 +26,7 @@ def format(element):
 
   formatted_element = u' '.join(formatted_element)
   formatted_element = formatted_element.strip()
-  formatted_element = sub(u' +', u' ', formatted_element)
+  formatted_element = re.sub(u' +', u' ', formatted_element)
 
   return formatted_element
 
@@ -84,24 +76,22 @@ def r_f_discord_post(board):
   post = choice(posts)
   return post
 
-class Chan():
-  def __init__(self,bot):
-    self.bot = bot
+class Chan(Cog):
+  def __init__(self, bot):
+    super().__init__(bot)
 
   boards = ['b', 'pol', 'v', 's4s']
   @commands.group(aliases=['4chan'], invoke_without_command=True)
   async def chan(self, board:str=None):
     try:
       """Replies random 4chan post."""
-      if board == None:
+      if board is None:
         post = r_f_discord_post(random.choice(self.boards))
       else:
         post = r_f_discord_post(board.replace("/", "")) 
-      post = '{0}'.format(post)
       await self.bot.say(post)
     except Exception as e:
       await self.bot.say("Invalid Board!")
-      print(code.format(type(e).__name__ + ': ' + str(e)))
 
 def setup(bot):
   bot.add_cog(Chan(bot))
