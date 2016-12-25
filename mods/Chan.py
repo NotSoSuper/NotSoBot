@@ -73,7 +73,7 @@ def r_f_discord_post(board):
   posts = get_discord_posts(board)
   posts = tuple(post['content'] for post in posts)
 
-  post = choice(posts)
+  post = random.choice(posts)
   return post
 
 class Chan(Cog):
