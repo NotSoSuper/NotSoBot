@@ -14,7 +14,7 @@ class Logging(Cog):
 	async def on_message(self, message):
 		if message.author == self.bot.user:
 			return
-		sql = "INSERT INTO `messages` (`shard`, `server`, `server_name`, `channel`, `channel_name`, `user`, `user_id`, `message`, `message_id`, `attachment`, `action`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+		sql = "INSERT INTO `messages` (`shard`, `server`, `server_name`, `channel`, `channel_name`, `user`, `user_id`, `message_id`, `action`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
 		is_pm = True if message.channel.is_private else None
 		server = message.server.id if not is_pm else None
 		server_name = message.server.name if not is_pm else 'Private Message'
@@ -23,9 +23,8 @@ class Logging(Cog):
 		user = str(message.author)
 		user_id = message.author.id
 		message_id = message.id
-		attachment = ", ".join([attachment['url'] for attachment in message.attachments]) if message.attachments else None
 		action = 0
-		self.cursor.execute(sql, (self.bot.shard_id, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment, action))
+		self.cursor.execute(sql, (self.bot.shard_id, server, server_name, channel, channel_name, user, user_id, message_id, action))
 		self.cursor.commit()
 		# print("({0} <{1}>) {2} <{3}> | {4} <{5}> | {6}".format(server_name, server, channel_name, channel, user, user_id, message.clean_content))
 
@@ -34,7 +33,7 @@ class Logging(Cog):
 			return
 		if before.content == after.content:
 			return
-		sql = "INSERT INTO `messages` (`shard`, `server`, `server_name`, `channel`, `channel_name`, `user`, `user_id`, `message`, `message_after`, `message_id`, `attachment`, `action`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+		sql = "INSERT INTO `messages` (`shard`, `server`, `server_name`, `channel`, `channel_name`, `user`, `user_id`, `message_id`, `action`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
 		is_pm = True if before.channel.is_private else None
 		server = before.server.id if not is_pm else None
 		server_name = before.server.name if not is_pm else 'Private Message'
@@ -43,15 +42,14 @@ class Logging(Cog):
 		user = str(before.author)
 		user_id = before.author.id
 		message_id = before.id
-		attachment = ", ".join([attachment['url'] for attachment in after.attachments]) if after.attachments else None
 		action = 2
-		self.cursor.execute(sql, (self.bot.shard_id, server, server_name, channel, channel_name, user, user_id, before.content, after.content, message_id, attachment, action))
+		self.cursor.execute(sql, (self.bot.shard_id, server, server_name, channel, channel_name, user, user_id, message_id, action))
 		self.cursor.commit()
 
 	async def on_message_delete(self, message):
 		if message.author == self.bot.user:
 			return
-		sql = "INSERT INTO `messages` (`shard`, `server`, `server_name`, `channel`, `channel_name`, `user`, `user_id`, `message`, `message_id`, `attachment`, `action`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+		sql = "INSERT INTO `messages` (`shard`, `server`, `server_name`, `channel`, `channel_name`, `user`, `user_id`, `message_id`, `action`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
 		is_pm = True if message.channel.is_private else None
 		server = message.server.id if not is_pm else None
 		server_name = message.server.name if not is_pm else 'Private Message'
@@ -60,9 +58,8 @@ class Logging(Cog):
 		user = str(message.author)
 		user_id = message.author.id
 		message_id = message.id
-		attachment = ", ".join([attachment['url'] for attachment in message.attachments]) if message.attachments else None
 		action = 1
-		self.cursor.execute(sql, (self.bot.shard_id, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment, action))
+		self.cursor.execute(sql, (self.bot.shard_id, server, server_name, channel, channel_name, user, user_id, message_id, attachment, action))
 		self.cursor.commit()
 
 	async def on_command(self, command, ctx):
