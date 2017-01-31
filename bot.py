@@ -379,16 +379,6 @@ class NotSoBot(commands.Bot):
 		embed.color = discord.Color.green()
 		embed.timestamp = datetime.datetime.now()
 		await self.queue_message('211247117816168449', embed)
-		invite = None
-		if server.me.permissions_in(server.default_channel).create_instant_invite:
-			invite = await self.create_invite(server.default_channel)
-		else:
-			for channel in server.channels:
-				if server.me.permissions_in(channel).create_instant_invite:
-					invite = await self.create_invite(channel)
-					break
-		if invite:
-			await self.queue_message('211247117816168449', str(invite))
 
 	async def on_server_remove(self, server):
 		await self.wait_until_ready()
