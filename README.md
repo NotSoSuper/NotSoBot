@@ -1,7 +1,7 @@
 # NotSoBot
 ### Requires:
 - Python 3.5
-- [discord.py](https://github.com/raptz/discord.py)
+- [discord.py](https://github.com/rapptz/discord.py)
 - lots of Python modules
 
 [![NotSoSuper's Dev](https://discordapp.com/api/guilds/178313653177548800/widget.png?style=banner2)](https://discord.gg/QQENx4f)
