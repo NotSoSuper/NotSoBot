@@ -10,7 +10,7 @@
 
 I won't mind if you take some code to learn or improve but please don't be a skid.
 
-Feel free to ask me questions, NotSoSuper#0001 on Discord.
+Feel free to ask me questions, NotSoSuper#1338 on Discord.
 
 The MySQL database scheme is included in `discord.sql`, you will have to reverse or replace the enviormental variables in the code for proper results.
 
