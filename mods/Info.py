@@ -227,7 +227,7 @@ class Info(Cog):
 	async def botinfo(self, ctx):
 		"""Bot Information"""
 		msg = "NotSoBot\n"
-		msg += "Creator: @NotSoSuper#8800\n"
+		msg += "Creator: @NotSoSuper#0001\n"
 		msg += "Creator Steam: http://steamcommunity.com/id/suck\n"
 		msg += "Library: Discord.py\n"
 		msg += "Code: https://github.com/NotSoSuper/notsosuper_bot/\n"
