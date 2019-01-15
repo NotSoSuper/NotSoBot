@@ -9,6 +9,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from utils import checks
 from utils.funcs import Funcs
 
+
 #Discord Code Block Formats
 code = "```py\n{0}\n```"
 diff = "```diff\n{0}\n```"
