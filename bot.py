@@ -43,14 +43,17 @@ def init_funcs(bot):
 	bot.globals.command_spam = {}
 	bot.globals.spam_sent = {}
 	bot.globals.command_deleted_sent = {}
+
 	#MySQL
 	global cursor, engine, Session
-	if bot.dev_mode:
-		db = 'discord_dev'
-	elif bot.self_bot:
-		db = 'discord_self'
-	else:
-		db = 'discord'
+	# if bot.dev_mode:
+	# 	db = 'discord_dev'
+	# elif bot.self_bot:
+	# 	db = 'discord_self'
+	# else:
+	# 	db = 'discord'
+	db = 'discord'
+
 	engine = create_engine('mysql+pymysql://{0}:@localhost/{1}?charset=utf8mb4'.format(bot.shard_id if not bot.self_bot else '', db), encoding='utf8')
 	session_factory = sessionmaker(bind=engine)
 	Session = scoped_session(session_factory)
@@ -217,7 +220,7 @@ class NotSoBot(commands.Bot):
 		prefixes = prefix_result[0]
 		check = prefix_result[1] if not self.self_bot else True
 		command = None
-		invoker = None
+		#invoker = None
 		pm_only = False
 		for prefix in prefixes:
 			if message.content.lower().startswith(prefix) and check and message.content.lower() != prefix:
@@ -287,7 +290,7 @@ class NotSoBot(commands.Bot):
 		embed.add_field(name='Server', value='{0.name} <{0.id}>'.format(ctx.message.server) if ctx.message.server else 'Private Message')
 		embed.add_field(name='Channel', value='`{0.name}`'.format(ctx.message.channel))
 		embed.add_field(name='Message', value=ctx.message.clean_content+' '.join([x['url'] for x in ctx.message.attachments]), inline=False)
-		embed.color = self.funcs.get_color()()
+		#embed.color = self.funcs.get_color()
 		embed.timestamp = ctx.message.timestamp
 		await self.queue_message("178313681786896384", embed)
 		if ctx.message.author.id == self.owner.id:
@@ -321,10 +324,7 @@ class NotSoBot(commands.Bot):
 				else:
 					cooldown_sent[ctx.message.channel] = utc+5
 					await self.send_message(ctx.message.channel, ":no_entry: **Cooldown** `Cannot use again for another {:.2f} seconds.`".format(e.retry_after))
-			elif isinstance(e, commands.MissingRequiredArgument):
-				await self.command_help(ctx)
-				ctx.command.reset_cooldown(ctx)
-			elif isinstance(e, commands.BadArgument):
+			elif isinstance(e, commands.MissingRequiredArgument) or isinstance(e, commands.BadArgument):
 				await self.command_help(ctx)
 				ctx.command.reset_cooldown(ctx)
 			elif isinstance(e, checks.No_Perms):
@@ -375,7 +375,7 @@ class NotSoBot(commands.Bot):
 					embed.add_field(name='File', value=str(e.__traceback__.tb_frame.f_code.co_filename)+'\nLine: **{0}**'.format(e.__traceback__.tb_lineno), inline=False)
 					embed.add_field(name='Traceback', value=code.format(''.join(tb)), inline=False)
 					embed.set_author(name='{0} <{0.id}>'.format(ctx.message.author), icon_url=ctx.message.author.avatar_url)
-					embed.color = discord.Color.red()
+					#embed.color = "#FF0000"
 					embed.timestamp = datetime.datetime.now()
 					await self.queue_message("180073721048989696", embed)
 			elif type(e).__name__ == 'NoPrivateMessage':
@@ -403,7 +403,7 @@ class NotSoBot(commands.Bot):
 		embed.add_field(name='Members', value='**{0}**/{1}'.format(sum(1 for x in server.members if x.status == discord.Status.online or x.status == discord.Status.idle), len(server.members)))
 		embed.add_field(name='Default Channel', value=server.default_channel)
 		embed.add_field(name='Channels', value='Text: `{0}`\nVoice: `{1}`\nTotal: **{2}**'.format(sum(1 for x in server.channels if x.type == discord.ChannelType.text), sum(1 for x in server.channels if x.type == discord.ChannelType.voice), len(server.channels)))
-		embed.color = discord.Color.green()
+		#embed.color = "#00FF00"
 		embed.timestamp = datetime.datetime.now()
 		await self.queue_message('211247117816168449', embed)
 	#END on_server_join()
@@ -422,7 +422,7 @@ class NotSoBot(commands.Bot):
 		embed.set_author(name='{0} <{0.id}>'.format(server.owner), icon_url=server.owner.avatar_url)
 		embed.add_field(name='Server', value='{0.name} <{0.id}>'.format(server))
 		embed.add_field(name='Members', value='**{0}**/{1}'.format(sum(1 for x in server.members if x.status == discord.Status.online or x.status == discord.Status.idle), len(server.members)))
-		embed.color = discord.Color.red()
+		#embed.color = discord.Color.red()
 		embed.timestamp = datetime.datetime.now()
 		await self.queue_message('211247117816168449', embed)
 	#END on_server_remove()
@@ -483,3 +483,4 @@ class NotSoBot(commands.Bot):
 		except Exception as e:
 			print(e)
 	#END die()
+#END_CLASS NotSoBot
