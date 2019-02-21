@@ -14,6 +14,7 @@ from utils.funcs import Funcs
 code = "```py\n{0}\n```"
 diff = "```diff\n{0}\n```"
 
+
 def init_logging(shard_id, bot):
 	logging.root.setLevel(logging.INFO)
 	logger = logging.getLogger('NotSoBot #{0}'.format(shard_id))
@@ -24,9 +25,12 @@ def init_logging(shard_id, bot):
 	log.addHandler(handler)
 	bot.logger = logger
 	bot.log = log
+#END init_logging()
+
 
 class Object(object):
 	pass
+
 
 #Bot Utility Functions/Variables
 def init_funcs(bot):
@@ -85,44 +89,50 @@ def init_funcs(bot):
 	bot.path = Object()
 	discord_path = bot.path.discord = funcs.discord_path
 	files_path = bot.path.files = funcs.files_path
+#END init_funcs()
+
 
 #Bot Cogs
 modules = [
-	'mods.Logging',
+	#'mods.Logging',
 	'mods.Commands',
-	'mods.Moderation',
+	#'mods.Moderation',
 	'mods.Utils',
 	'mods.Info',
 	'mods.Fun',
 	'mods.Chan',
 	'mods.Repl',
-	'mods.Stats',
+	#'mods.Stats',
 	'mods.Tags',
 	'mods.Logs',
 	'mods.Wc',
 	# 'mods.AI',
 	'mods.Changes',
 	'mods.Markov',
-	'mods.Verification',
+	#'mods.Verification',
 	'mods.Nsfw',
 	'mods.Reminders',
 	'mods.JoinLeave',
 	'mods.Afk'
 ]
 
+
 #Console Colors
 def prRed(prt): print("\033[91m {}\033[00m" .format(prt))
 def prGreen(prt): print("\033[92m {}\033[00m" .format(prt))
+
 
 class NotSoBot(commands.Bot):
 	def __init__(self, *args, **kwargs):
 		self.loop = kwargs.pop('loop', asyncio.get_event_loop())
 		asyncio.get_child_watcher().attach_loop(self.loop)
 		self.dev_mode = kwargs.pop('dev_mode', False)
-		self.token = os.getenv('bot_token') if not self.dev_mode else os.getenv('bot_beta_token')
+		#self.token = os.getenv('bot_token') if not self.dev_mode else os.getenv('bot_beta_token')
+		self.token = "NTQzNTQyMTQ4NjUwMzY5MDUz.Dz-EmQ.oGb9THEL_e_0vJh3knr_D2lKQH4" # Hardcoded
 		self.self_bot = kwargs.pop('self_bot', False)
 		if self.self_bot:
-			self.token = os.getenv('notsosuper_token')
+			self.token = "NTQzNTQyMTQ4NjUwMzY5MDUz.Dz-EmQ.oGb9THEL_e_0vJh3knr_D2lKQH4" # Hardcoded
+			#self.token = os.getenv('notsosuper_token')
 		shard_id = kwargs.get('shard_id', 0)
 		command_prefix = kwargs.pop('command_prefix', commands.when_mentioned_or('.'))
 		init_logging(shard_id, self)
@@ -134,13 +144,19 @@ class NotSoBot(commands.Bot):
 		self.own_task = None
 		self.last_message = None
 		self.command_messages = {}
+	#END __init__()
+
 
 	def __del__(self):
 		self.loop.set_exception_handler(lambda *args, **kwargs: None)
+	#END __del__()
+
 
 	@property
 	def get_cursor(self):
 		return Session()
+	#END get_cursor()
+
 
 	async def on_ready(self):
 		if not self.self_bot:
@@ -172,6 +188,8 @@ class NotSoBot(commands.Bot):
 		else:
 			print('------\n{0}\nShard {1}/{2}{3}------'.format(self.user, self.shard_id, self.shard_count-1, '\nDev Mode: Enabled\n' if self.dev_mode else ''))
 		await self.change_presence(game=discord.Game(name="https://ropestore.org"))
+	#END on_ready()
+
 
 	async def on_message(self, message):
 		self.last_message = message.timestamp
@@ -258,6 +276,8 @@ class NotSoBot(commands.Bot):
 						command_spam[message.channel] = {0: [utc+4], 1: [command]}
 				await self.process_commands(message, command, prefix)
 				self.command_messages[message] = [command, prefix]
+	#END on_message()
+
 
 	async def on_command(self, command, ctx):
 		embed = discord.Embed()
@@ -272,6 +292,8 @@ class NotSoBot(commands.Bot):
 		await self.queue_message("178313681786896384", embed)
 		if ctx.message.author.id == self.owner.id:
 			ctx.command.reset_cooldown(ctx)
+	#END on_command()
+
 
 	async def on_error(self, event, *args, **kwargs):
 		prRed("Error!")
@@ -281,6 +303,8 @@ class NotSoBot(commands.Bot):
 		wrapper = textwrap.TextWrapper(initial_indent='! ', subsequent_indent='- ')
 		fmt = wrapper.fill(str(traceback.format_exc()))
 		await self.queue_message("180073721048989696", diff.format(fmt))
+	#END on_error()
+
 
 	async def on_command_error(self, e, ctx):
 		try:
@@ -366,6 +390,8 @@ class NotSoBot(commands.Bot):
 					return
 		except Exception as e:
 			print(e)
+	#END on_command_error()
+	
 
 	async def on_server_join(self, server):
 		await self.wait_until_ready()
@@ -380,6 +406,8 @@ class NotSoBot(commands.Bot):
 		embed.color = discord.Color.green()
 		embed.timestamp = datetime.datetime.now()
 		await self.queue_message('211247117816168449', embed)
+	#END on_server_join()
+
 
 	async def on_server_remove(self, server):
 		await self.wait_until_ready()
@@ -397,6 +425,8 @@ class NotSoBot(commands.Bot):
 		embed.color = discord.Color.red()
 		embed.timestamp = datetime.datetime.now()
 		await self.queue_message('211247117816168449', embed)
+	#END on_server_remove()
+
 
 	async def on_resumed(self):
 		last_time = self.get_last_time()
@@ -409,6 +439,8 @@ class NotSoBot(commands.Bot):
 			downtime = str(utc - last_time)
 		msg = '`[Shard {0}]` {1} has now <@&211727010932719627> after being <@&211727098149076995> since **{2}** for **{3}** second(s) (Current Time: **{4}**)'.format(self.shard_id, self.user.mention, time_msg, downtime, current_time_msg)
 		await self.queue_message('211247117816168449', msg)
+	#END on_resumed()
+
 
 	async def send_message(self, destination, content=None, *, tts=False, embed=None, replace_mentions=False, replace_everyone=True):
 		if content:
@@ -418,15 +450,23 @@ class NotSoBot(commands.Bot):
 			if replace_mentions:
 				content = await self.funcs.replace_mentions(content)
 		return await super().send_message(destination, content, tts=tts, embed=embed)
+	#END send_message()
+
 
 	def get_member(self, id:str):
 		return discord.utils.get(self.get_all_members(), id=id)
+	#END get_member()
+
 
 	def run(self):
 		super().run(self.token)
+	#END run()
+
 
 	async def login(self, *args, **kwargs):
 		return await super().login(self.token, bot=False if self.self_bot else True)
+	#END login()
+
 
 	def die(self):
 		try:
@@ -442,3 +482,4 @@ class NotSoBot(commands.Bot):
 				self.log.removeHandler(handler)
 		except Exception as e:
 			print(e)
+	#END die()
