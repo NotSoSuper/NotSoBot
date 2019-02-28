@@ -1,2 +1,4 @@
 .idea
 .vscode
+__pycache__
+notsobot_3.log
