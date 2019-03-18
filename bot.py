@@ -46,23 +46,23 @@ def init_funcs(bot):
 
 	#MySQL
 	global cursor, engine, Session
-	# if bot.dev_mode:
-	# 	db = 'discord_dev'
-	# elif bot.self_bot:
-	# 	db = 'discord_self'
-	# else:
-	# 	db = 'discord'
+	if bot.dev_mode:
+		db = 'discord_dev'
+	elif bot.self_bot:
+		db = 'discord_self'
+	else:
+		db = 'discord'
 	db = 'discord'
 
-	engine = create_engine('mysql+pymysql://{0}:@localhost/{1}?charset=utf8mb4'.format(bot.shard_id if not bot.self_bot else '', db), encoding='utf8')
-	session_factory = sessionmaker(bind=engine)
-	Session = scoped_session(session_factory)
-	bot.mysql = Object()
-	engine = bot.mysql.engine = engine
+	DB # engine = create_engine('mysql+pymysql://{0}:@localhost/{1}?charset=utf8mb4'.format(bot.shard_id if not bot.self_bot else '', db), encoding='utf8')
+	DB # session_factory = sessionmaker(bind=engine)
+	DB # Session = scoped_session(session_factory)
+	DB # bot.mysql = Object()
+	DB # engine = bot.mysql.engine = engine
 	cursor = bot.mysql.cursor = bot.get_cursor
 	#Utils
 	bot.pruned_messages = []
-	funcs = Funcs(bot, cursor)
+	funcs = Funcs(bot)
 	bot.funcs = funcs
 	bot.escape = funcs.escape
 	bot.get_prefix = funcs.get_prefix
@@ -125,6 +125,7 @@ def prRed(prt): print("\033[91m {}\033[00m" .format(prt))
 def prGreen(prt): print("\033[92m {}\033[00m" .format(prt))
 
 
+# The main class of the sever
 class NotSoBot(commands.Bot):
 	def __init__(self, *args, **kwargs):
 		self.loop = kwargs.pop('loop', asyncio.get_event_loop())
@@ -150,6 +151,7 @@ class NotSoBot(commands.Bot):
 	#END __init__()
 
 
+	# Called when the bot is destroyed
 	def __del__(self):
 		self.loop.set_exception_handler(lambda *args, **kwargs: None)
 	#END __del__()
@@ -157,10 +159,12 @@ class NotSoBot(commands.Bot):
 
 	@property
 	def get_cursor(self):
+		pass
 		return Session()
 	#END get_cursor()
 
 
+	# Called when the bot it first created
 	async def on_ready(self):
 		if not self.self_bot:
 			utc = int(time.time())
@@ -194,19 +198,23 @@ class NotSoBot(commands.Bot):
 	#END on_ready()
 
 
+	# Handles messages sent by users
 	async def on_message(self, message):
 		self.last_message = message.timestamp
 		await self.wait_until_ready()
 		if self.globals.on_ready_write:
 			self.write_last_time()
 
+		# Check if NotSoSuper is the message sender
 		if self.owner is None:
 			if self.self_bot:
 				self.owner = self.user
 			else:
 				application_info = await self.application_info()
 				self.owner = application_info.owner
+		#END if
 
+		# Check if various modes are on
 		if self.dev_mode and message.author != self.owner:
 			return
 		elif self.self_bot and message.author != self.owner:
@@ -216,17 +224,22 @@ class NotSoBot(commands.Bot):
 		elif message.author.bot:
 			return
 
+		# Check if the user is blacklisted
 		blacklisted = await self.is_blacklisted(message)
 		if blacklisted:
 			return
 
+		# Get the prefix of the specific guild
 		prefix_result = await self.get_prefix(message)
-		prefixes = prefix_result[0]
-		check = prefix_result[1] if not self.self_bot else True
+		prefixes = prefix_result[0] # The actual command prefix
+		check = prefix_result[1] if not self.self_bot else True # Whether the bot was called with a mention
 		command = None
 		#invoker = None
 		pm_only = False
+
+		# Go through the mention and prefix
 		for prefix in prefixes:
+			# Check if it's a valid command
 			if message.content.lower().startswith(prefix) and check and message.content.lower() != prefix:
 				prefix_escape = re.escape(prefix)
 				message_regex = re.compile(r'('+prefix_escape+r')'+r'[\s]*(\w+)(.*)', re.I|re.X|re.S)
@@ -241,23 +254,30 @@ class NotSoBot(commands.Bot):
 				if command not in self.commands:
 					return
 
+				# Check if the channel is set to private
 				if message.channel.is_private:
 					if command in self.commands and self.commands[command].no_pm:
 						pm_only = True
 				
+				# Check if the bot is set to pm only in the channel
 				if pm_only is False:
 					cmd = str(self.commands[command])
 					command_blacklisted = await self.command_check(message, cmd, prefix)
 					
+					# Exit the command handler if the command is blacklisted in the channel
 					if command_blacklisted:
 						return
 				try:
 					await self.send_typing(message.channel)
 				except:
 					pass
+				
+				# The command's valid
 				if message.author != self.owner and str(command) not in ('chan', 'ping', 'markov'):
 					utc = int(time.time())
 					command_spam = self.globals.command_spam
+
+					# Handle commands specific for spam channels
 					if message.channel in command_spam:
 						if command_spam[message.channel][1].count(command) >= 8:
 							command_time = command_spam[message.channel][0][-1]
@@ -286,11 +306,16 @@ class NotSoBot(commands.Bot):
 							command_spam[message.channel][1].append(command)
 					else:
 						command_spam[message.channel] = {0: [utc+4], 1: [command]}
+				#END if
+				
+				# Process the now verified command
 				await self.process_commands(message, command, prefix)
 				self.command_messages[message] = [command, prefix]
+			#END if
 	#END on_message()
 
 
+	# Sets up an embed for specific commands
 	async def on_command(self, command, ctx):
 		embed = discord.Embed()
 		embed.title = '**{0}**'.format(command.name)
@@ -302,11 +327,14 @@ class NotSoBot(commands.Bot):
 		#embed.color = self.funcs.get_color()
 		embed.timestamp = ctx.message.timestamp
 		await self.queue_message("178313681786896384", embed)
+
+		# If the sender is NotSoSuper, the cooldown doesn't apply
 		if ctx.message.author.id == self.owner.id:
 			ctx.command.reset_cooldown(ctx)
 	#END on_command()
 
 
+	# Send an error to the server when a defect is detected
 	async def on_error(self, event, *args, **kwargs):
 		prRed("Error!")
 		Current_Time = datetime.datetime.utcnow().strftime("%b/%d/%Y %H:%M:%S UTC")
@@ -318,6 +346,7 @@ class NotSoBot(commands.Bot):
 	#END on_error()
 
 
+	# Handles the various cases of a command being used improperly
 	async def on_command_error(self, e, ctx):
 		try:
 			if isinstance(e, commands.CommandOnCooldown):
@@ -355,6 +384,7 @@ class NotSoBot(commands.Bot):
 			elif isinstance(e, commands.CheckFailure):
 				await self.send_message(ctx.message.channel, ":warning: **Command check failed**\nCauses:\n `1.` Bot is missing `Administrator/Manage_roles` permission.\n `2.` You do not have proper permissions to run the command.\n `3.` The command is not to be used in PM's.")
 			elif isinstance(e, commands.CommandInvokeError):
+				# The error is on the bots side
 				if 'Forbidden' in str(e):
 					await self.send_message(ctx.message.channel, ":warning: "+code.format(str(e)))
 				elif 'NotFound' in str(e):
@@ -373,6 +403,7 @@ class NotSoBot(commands.Bot):
 						except:
 							pass
 				else:
+					# Setup an embed for the error
 					tb = traceback.format_exception(type(e), e.__cause__, e.__cause__.__traceback__)
 					embed = discord.Embed()
 					embed.title = '**__Command Error__**'
@@ -402,6 +433,7 @@ class NotSoBot(commands.Bot):
 	#END on_command_error()
 	
 
+	# Prints an embed when the bot first joins a guild to NotSoSupers server
 	async def on_server_join(self, server):
 		await self.wait_until_ready()
 		embed = discord.Embed()
@@ -418,6 +450,7 @@ class NotSoBot(commands.Bot):
 	#END on_server_join()
 
 
+	# Prints an embed whene the bot is removed from a server to NotSoSupers server
 	async def on_server_remove(self, server):
 		await self.wait_until_ready()
 		sql = "DELETE FROM `prefix_channel` WHERE server={0}".format(server.id)
@@ -437,6 +470,8 @@ class NotSoBot(commands.Bot):
 	#END on_server_remove()
 
 
+	# Calculates how long the bot was offline and posts it to NotSoSupers server
+	# Gets called when the bot resumes (I know, it's obvious)
 	async def on_resumed(self):
 		last_time = self.get_last_time()
 		time_msg = time.strftime('%m/%d/%Y %H:%M:%S', time.localtime(last_time))
@@ -451,32 +486,41 @@ class NotSoBot(commands.Bot):
 	#END on_resumed()
 
 
+	# Sends a message to a specific channel
 	async def send_message(self, destination, content=None, *, tts=False, embed=None, replace_mentions=False, replace_everyone=True):
+		# Only send a message if content exists
 		if content:
 			content = str(content)
+
 			if replace_everyone:
 				content = content.replace('@everyone', '@\u200beveryone').replace('@here', '@\u200bhere')
 			if replace_mentions:
 				content = await self.funcs.replace_mentions(content)
-		return await super().send_message(destination, content, tts=tts, embed=embed)
+
+			return await super().send_message(destination, content, tts=tts, embed=embed)
+		#END if
 	#END send_message()
 
 
+	# Returns a member object given a command
 	def get_member(self, id:str):
 		return discord.utils.get(self.get_all_members(), id=id)
 	#END get_member()
 
 
+	# Looks prettier than what LOC it executes
 	def run(self):
 		super().run(self.token)
 	#END run()
 
 
+	# Connect to discord
 	async def login(self, *args, **kwargs):
 		return await super().login(self.token, bot=False if self.self_bot else True)
 	#END login()
 
 
+	# Gracefully shutdown the bot and disconnect from MySQL
 	def die(self):
 		try:
 			self.loop.stop()

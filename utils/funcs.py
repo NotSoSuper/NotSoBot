@@ -40,9 +40,10 @@ class DataProtocol(asyncio.SubprocessProtocol):
 			pass
 
 class Funcs():
-	def __init__(self, bot, cursor):
+	# DB # def __init__(self, bot, cursor):
+	def __init__(self, bot):
 		self.bot = bot
-		self.cursor = cursor
+		# DB # self.cursor = cursor
 		self.bot.google_api_keys = open(self.discord_path('utils/keys.txt')).read().split('\n')
 		self.bot.google_count = 0
 		self.image_mimes = ['image/png', 'image/pjpeg', 'image/jpeg', 'image/x-icon']
