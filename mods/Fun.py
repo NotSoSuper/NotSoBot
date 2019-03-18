@@ -119,27 +119,35 @@ class Fun(Cog):
 			b = await self.bytes_download(url)
 			await self.bot.upload(b, filename='badmeme.png')
 
+	def getImgs(self, scale, imgs):
+		exif = {}
+		list_imgs = []
+		count = 0
+		for img in imgs:
+			i = wand.image.Image(file=img)
+			i.format = 'jpg'
+			i.alpha_channel = True
+			if i.size >= (3000, 3000):
+				return ':warning: `Image exceeds maximum resolution >= (3000, 3000).`', None
+			exif.update({count: (k[5:], v) for k, v in i.metadata.items() if k.startswith('exif:')})
+			count += 1
+			i.transform(resize='800x800>')
+			i.liquid_rescale(width=int(i.width * 0.5), height=int(i.height * 0.5),
+							 delta_x=int(0.5 * scale) if scale else 1, rigidity=0)
+			i.liquid_rescale(width=int(i.width * 1.5), height=int(i.height * 1.5), delta_x=scale if scale else 2,
+							 rigidity=0)
+			magikd = BytesIO()
+			i.save(file=magikd)
+			magikd.seek(0)
+			list_imgs.append(magikd)
+		return exif, list_imgs
+
 	def do_magik(self, scale, *imgs):
 		try:
-			list_imgs = []
-			exif = {}
 			exif_msg = ''
-			count = 0
-			for img in imgs:
-				i = wand.image.Image(file=img)
-				i.format = 'jpg'
-				i.alpha_channel = True
-				if i.size >= (3000, 3000):
-					return ':warning: `Image exceeds maximum resolution >= (3000, 3000).`', None
-				exif.update({count:(k[5:], v) for k, v in i.metadata.items() if k.startswith('exif:')})
-				count += 1
-				i.transform(resize='800x800>')
-				i.liquid_rescale(width=int(i.width * 0.5), height=int(i.height * 0.5), delta_x=int(0.5 * scale) if scale else 1, rigidity=0)
-				i.liquid_rescale(width=int(i.width * 1.5), height=int(i.height * 1.5), delta_x=scale if scale else 2, rigidity=0)
-				magikd = BytesIO()
-				i.save(file=magikd)
-				magikd.seek(0)
-				list_imgs.append(magikd)
+
+			exif, list_imgs = self.getImgs(scale, imgs)
+
 			if len(list_imgs) > 1:
 				imgs = [PIL.Image.open(i).convert('RGBA') for i in list_imgs]
 				min_shape = sorted([(np.sum(i.size), i.size) for i in imgs])[0][1]
@@ -201,6 +209,15 @@ class Fun(Cog):
 		except Exception as e:
 			await self.bot.say(e)
 
+	def gmagikExcept(self):
+		exc_type, exc_obj, tb = sys.exc_info()
+		f = tb.tb_frame
+		lineno = tb.tb_lineno
+		filename = f.f_code.co_filename
+		linecache.checkcache(filename)
+		line = linecache.getline(filename, lineno, f.f_globals)
+		print('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
+
 	def do_gmagik(self, ctx, gif, gif_dir, rand):
 		try:
 			try:
@@ -237,13 +254,7 @@ class Fun(Cog):
 				i.save(filename=image)
 			return True
 		except Exception as e:
-			exc_type, exc_obj, tb = sys.exc_info()
-			f = tb.tb_frame
-			lineno = tb.tb_lineno
-			filename = f.f_code.co_filename
-			linecache.checkcache(filename)
-			line = linecache.getline(filename, lineno, f.f_globals)
-			print('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
+			self.gmagikExcept()
 
 	@commands.command(pass_context=True)
 	@commands.cooldown(1, 20, commands.BucketType.server)
