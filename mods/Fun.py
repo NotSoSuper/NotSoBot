@@ -35,11 +35,18 @@ def get_deep_text(element):
 	except:
 		return ''
 
-def posnum(num): 
-	if num < 0 : 
-		return - (num)
+
+# updated to handle bad input and use abs function
+def posnum(num):
+	# check if number is int
+	if isinstance(num, int):
+		return abs(num)
+	# check if number is float
+	elif isinstance(num, float):
+		return abs(num)
 	else:
-		return num
+		return False
+
 
 def find_coeffs(pa, pb):
 	matrix = []
