@@ -18,7 +18,18 @@ from mods.cog import Cog
 cool = "```xl\n{0}\n```"
 code = "```py\n{0}\n```"
 
+
+# updated to check for bad inputs
 def check_int(k):
+	# if int, return true
+	if isinstance(k, int):
+		return True
+
+	# if float, return false
+	if isinstance(k, float):
+		return False
+
+	# if a string, parse and check if int
 	if k[0] in ('-', '+'):
 		return k[1:].isdigit()
 	return k.isdigit()

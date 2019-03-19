@@ -1,0 +1,5 @@
+.vscode
+.idea
+errors
+__pycache__
+notsobot_3.log

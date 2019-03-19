@@ -10,8 +10,13 @@ default_join = 'Welcome to **{server}** - {mention}! You are the {servercount} m
 default_leave = '**{user}#{discrim}** has left the server.'
 
 #http://stackoverflow.com/a/16671271
+# updated to check for input and use abs function
 def number_formating(n):
-	return str(n)+("th" if 4<=n%100<=20 else {1:"st",2:"nd",3:"rd"}.get(n%10, "th"))
+	if not isinstance(n, int):
+		return False
+	if n < 1:
+		n = abs(n)
+	return str(n) + ("th" if 4 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
 
 class Object():
 	pass

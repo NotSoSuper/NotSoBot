@@ -9,9 +9,11 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from utils import checks
 from utils.funcs import Funcs
 
+
 #Discord Code Block Formats
 code = "```py\n{0}\n```"
 diff = "```diff\n{0}\n```"
+
 
 def init_logging(shard_id, bot):
 	logging.root.setLevel(logging.INFO)
@@ -23,9 +25,12 @@ def init_logging(shard_id, bot):
 	log.addHandler(handler)
 	bot.logger = logger
 	bot.log = log
+#END init_logging()
+
 
 class Object(object):
 	pass
+
 
 #Bot Utility Functions/Variables
 def init_funcs(bot):
@@ -38,14 +43,17 @@ def init_funcs(bot):
 	bot.globals.command_spam = {}
 	bot.globals.spam_sent = {}
 	bot.globals.command_deleted_sent = {}
+
 	#MySQL
 	global cursor, engine, Session
-	if bot.dev_mode:
-		db = 'discord_dev'
-	elif bot.self_bot:
-		db = 'discord_self'
-	else:
-		db = 'discord'
+	# if bot.dev_mode:
+	# 	db = 'discord_dev'
+	# elif bot.self_bot:
+	# 	db = 'discord_self'
+	# else:
+	# 	db = 'discord'
+	db = 'discord'
+
 	engine = create_engine('mysql+pymysql://{0}:@localhost/{1}?charset=utf8mb4'.format(bot.shard_id if not bot.self_bot else '', db), encoding='utf8')
 	session_factory = sessionmaker(bind=engine)
 	Session = scoped_session(session_factory)
@@ -84,44 +92,50 @@ def init_funcs(bot):
 	bot.path = Object()
 	discord_path = bot.path.discord = funcs.discord_path
 	files_path = bot.path.files = funcs.files_path
+#END init_funcs()
+
 
 #Bot Cogs
 modules = [
-	'mods.Logging',
+	#'mods.Logging',
 	'mods.Commands',
-	'mods.Moderation',
+	#'mods.Moderation',
 	'mods.Utils',
 	'mods.Info',
 	'mods.Fun',
 	'mods.Chan',
 	'mods.Repl',
-	'mods.Stats',
+	#'mods.Stats',
 	'mods.Tags',
 	'mods.Logs',
 	'mods.Wc',
 	# 'mods.AI',
 	'mods.Changes',
 	'mods.Markov',
-	'mods.Verification',
+	#'mods.Verification',
 	'mods.Nsfw',
 	'mods.Reminders',
 	'mods.JoinLeave',
 	'mods.Afk'
 ]
 
+
 #Console Colors
 def prRed(prt): print("\033[91m {}\033[00m" .format(prt))
 def prGreen(prt): print("\033[92m {}\033[00m" .format(prt))
+
 
 class NotSoBot(commands.Bot):
 	def __init__(self, *args, **kwargs):
 		self.loop = kwargs.pop('loop', asyncio.get_event_loop())
 		asyncio.get_child_watcher().attach_loop(self.loop)
 		self.dev_mode = kwargs.pop('dev_mode', False)
-		self.token = os.getenv('bot_token') if not self.dev_mode else os.getenv('bot_beta_token')
+		#self.token = os.getenv('bot_token') if not self.dev_mode else os.getenv('bot_beta_token')
+		self.token = "NTQzNTQyMTQ4NjUwMzY5MDUz.Dz-EmQ.oGb9THEL_e_0vJh3knr_D2lKQH4" # Hardcoded
 		self.self_bot = kwargs.pop('self_bot', False)
 		if self.self_bot:
-			self.token = os.getenv('notsosuper_token')
+			self.token = "NTQzNTQyMTQ4NjUwMzY5MDUz.Dz-EmQ.oGb9THEL_e_0vJh3knr_D2lKQH4" # Hardcoded
+			#self.token = os.getenv('notsosuper_token')
 		shard_id = kwargs.get('shard_id', 0)
 		command_prefix = kwargs.pop('command_prefix', commands.when_mentioned_or('.'))
 		init_logging(shard_id, self)
@@ -133,13 +147,19 @@ class NotSoBot(commands.Bot):
 		self.own_task = None
 		self.last_message = None
 		self.command_messages = {}
+	#END __init__()
+
 
 	def __del__(self):
 		self.loop.set_exception_handler(lambda *args, **kwargs: None)
+	#END __del__()
+
 
 	@property
 	def get_cursor(self):
 		return Session()
+	#END get_cursor()
+
 
 	async def on_ready(self):
 		if not self.self_bot:
@@ -171,18 +191,22 @@ class NotSoBot(commands.Bot):
 		else:
 			print('------\n{0}\nShard {1}/{2}{3}------'.format(self.user, self.shard_id, self.shard_count-1, '\nDev Mode: Enabled\n' if self.dev_mode else ''))
 		await self.change_presence(game=discord.Game(name="https://ropestore.org"))
+	#END on_ready()
+
 
 	async def on_message(self, message):
 		self.last_message = message.timestamp
 		await self.wait_until_ready()
 		if self.globals.on_ready_write:
 			self.write_last_time()
+
 		if self.owner is None:
 			if self.self_bot:
 				self.owner = self.user
 			else:
 				application_info = await self.application_info()
 				self.owner = application_info.owner
+
 		if self.dev_mode and message.author != self.owner:
 			return
 		elif self.self_bot and message.author != self.owner:
@@ -191,33 +215,40 @@ class NotSoBot(commands.Bot):
 			return
 		elif message.author.bot:
 			return
+
 		blacklisted = await self.is_blacklisted(message)
 		if blacklisted:
 			return
+
 		prefix_result = await self.get_prefix(message)
 		prefixes = prefix_result[0]
 		check = prefix_result[1] if not self.self_bot else True
 		command = None
-		invoker = None
+		#invoker = None
 		pm_only = False
 		for prefix in prefixes:
 			if message.content.lower().startswith(prefix) and check and message.content.lower() != prefix:
 				prefix_escape = re.escape(prefix)
 				message_regex = re.compile(r'('+prefix_escape+r')'+r'[\s]*(\w+)(.*)', re.I|re.X|re.S)
 				match = message_regex.findall(message.content)
+
 				if len(match) == 0:
 					return
+
 				match = match[0]
 				command = match[1].lower()
 				message.content = match[0].lower()+command+match[2]
 				if command not in self.commands:
 					return
+
 				if message.channel.is_private:
 					if command in self.commands and self.commands[command].no_pm:
 						pm_only = True
+				
 				if pm_only is False:
 					cmd = str(self.commands[command])
 					command_blacklisted = await self.command_check(message, cmd, prefix)
+					
 					if command_blacklisted:
 						return
 				try:
@@ -257,6 +288,8 @@ class NotSoBot(commands.Bot):
 						command_spam[message.channel] = {0: [utc+4], 1: [command]}
 				await self.process_commands(message, command, prefix)
 				self.command_messages[message] = [command, prefix]
+	#END on_message()
+
 
 	async def on_command(self, command, ctx):
 		embed = discord.Embed()
@@ -266,11 +299,13 @@ class NotSoBot(commands.Bot):
 		embed.add_field(name='Server', value='{0.name} <{0.id}>'.format(ctx.message.server) if ctx.message.server else 'Private Message')
 		embed.add_field(name='Channel', value='`{0.name}`'.format(ctx.message.channel))
 		embed.add_field(name='Message', value=ctx.message.clean_content+' '.join([x['url'] for x in ctx.message.attachments]), inline=False)
-		embed.color = self.funcs.get_color()()
+		#embed.color = self.funcs.get_color()
 		embed.timestamp = ctx.message.timestamp
 		await self.queue_message("178313681786896384", embed)
 		if ctx.message.author.id == self.owner.id:
 			ctx.command.reset_cooldown(ctx)
+	#END on_command()
+
 
 	async def on_error(self, event, *args, **kwargs):
 		prRed("Error!")
@@ -280,6 +315,8 @@ class NotSoBot(commands.Bot):
 		wrapper = textwrap.TextWrapper(initial_indent='! ', subsequent_indent='- ')
 		fmt = wrapper.fill(str(traceback.format_exc()))
 		await self.queue_message("180073721048989696", diff.format(fmt))
+	#END on_error()
+
 
 	async def on_command_error(self, e, ctx):
 		try:
@@ -296,10 +333,7 @@ class NotSoBot(commands.Bot):
 				else:
 					cooldown_sent[ctx.message.channel] = utc+5
 					await self.send_message(ctx.message.channel, ":no_entry: **Cooldown** `Cannot use again for another {:.2f} seconds.`".format(e.retry_after))
-			elif isinstance(e, commands.MissingRequiredArgument):
-				await self.command_help(ctx)
-				ctx.command.reset_cooldown(ctx)
-			elif isinstance(e, commands.BadArgument):
+			elif isinstance(e, commands.MissingRequiredArgument) or isinstance(e, commands.BadArgument):
 				await self.command_help(ctx)
 				ctx.command.reset_cooldown(ctx)
 			elif isinstance(e, checks.No_Perms):
@@ -350,7 +384,7 @@ class NotSoBot(commands.Bot):
 					embed.add_field(name='File', value=str(e.__traceback__.tb_frame.f_code.co_filename)+'\nLine: **{0}**'.format(e.__traceback__.tb_lineno), inline=False)
 					embed.add_field(name='Traceback', value=code.format(''.join(tb)), inline=False)
 					embed.set_author(name='{0} <{0.id}>'.format(ctx.message.author), icon_url=ctx.message.author.avatar_url)
-					embed.color = discord.Color.red()
+					#embed.color = "#FF0000"
 					embed.timestamp = datetime.datetime.now()
 					await self.queue_message("180073721048989696", embed)
 			elif type(e).__name__ == 'NoPrivateMessage':
@@ -365,6 +399,8 @@ class NotSoBot(commands.Bot):
 					return
 		except Exception as e:
 			print(e)
+	#END on_command_error()
+	
 
 	async def on_server_join(self, server):
 		await self.wait_until_ready()
@@ -376,9 +412,11 @@ class NotSoBot(commands.Bot):
 		embed.add_field(name='Members', value='**{0}**/{1}'.format(sum(1 for x in server.members if x.status == discord.Status.online or x.status == discord.Status.idle), len(server.members)))
 		embed.add_field(name='Default Channel', value=server.default_channel)
 		embed.add_field(name='Channels', value='Text: `{0}`\nVoice: `{1}`\nTotal: **{2}**'.format(sum(1 for x in server.channels if x.type == discord.ChannelType.text), sum(1 for x in server.channels if x.type == discord.ChannelType.voice), len(server.channels)))
-		embed.color = discord.Color.green()
+		#embed.color = "#00FF00"
 		embed.timestamp = datetime.datetime.now()
 		await self.queue_message('211247117816168449', embed)
+	#END on_server_join()
+
 
 	async def on_server_remove(self, server):
 		await self.wait_until_ready()
@@ -393,9 +431,11 @@ class NotSoBot(commands.Bot):
 		embed.set_author(name='{0} <{0.id}>'.format(server.owner), icon_url=server.owner.avatar_url)
 		embed.add_field(name='Server', value='{0.name} <{0.id}>'.format(server))
 		embed.add_field(name='Members', value='**{0}**/{1}'.format(sum(1 for x in server.members if x.status == discord.Status.online or x.status == discord.Status.idle), len(server.members)))
-		embed.color = discord.Color.red()
+		#embed.color = discord.Color.red()
 		embed.timestamp = datetime.datetime.now()
 		await self.queue_message('211247117816168449', embed)
+	#END on_server_remove()
+
 
 	async def on_resumed(self):
 		last_time = self.get_last_time()
@@ -408,6 +448,8 @@ class NotSoBot(commands.Bot):
 			downtime = str(utc - last_time)
 		msg = '`[Shard {0}]` {1} has now <@&211727010932719627> after being <@&211727098149076995> since **{2}** for **{3}** second(s) (Current Time: **{4}**)'.format(self.shard_id, self.user.mention, time_msg, downtime, current_time_msg)
 		await self.queue_message('211247117816168449', msg)
+	#END on_resumed()
+
 
 	async def send_message(self, destination, content=None, *, tts=False, embed=None, replace_mentions=False, replace_everyone=True):
 		if content:
@@ -417,15 +459,23 @@ class NotSoBot(commands.Bot):
 			if replace_mentions:
 				content = await self.funcs.replace_mentions(content)
 		return await super().send_message(destination, content, tts=tts, embed=embed)
+	#END send_message()
+
 
 	def get_member(self, id:str):
 		return discord.utils.get(self.get_all_members(), id=id)
+	#END get_member()
+
 
 	def run(self):
 		super().run(self.token)
+	#END run()
+
 
 	async def login(self, *args, **kwargs):
 		return await super().login(self.token, bot=False if self.self_bot else True)
+	#END login()
+
 
 	def die(self):
 		try:
@@ -441,3 +491,5 @@ class NotSoBot(commands.Bot):
 				self.log.removeHandler(handler)
 		except Exception as e:
 			print(e)
+	#END die()
+#END_CLASS NotSoBot
