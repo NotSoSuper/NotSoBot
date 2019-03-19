@@ -11,8 +11,19 @@ def lightness(pixel):
     return rgb_to_hsv(pixel[0], pixel[1], pixel[2])[2] / 255.0  # For backwards compatibility with python2
 
 
+# Updated to check for bad input
 def random_width(clength):
+    # check if input is an integer
+    if not isinstance(clength, int):
+        return False
+    # if integer is negative, return false
+    if clength < 0:
+        return False
+
+    # get a random number
     x = random.random()
+
+    # set width equal a value less than or equal to clength
     width = int(clength * (1 - x))
     return width
 
