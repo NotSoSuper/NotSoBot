@@ -1171,7 +1171,7 @@ class Fun(Cog):
 					line2 = ' '.join(split[1:])
 		if line2 is None:
 			line2 = ''
-		rep = [["-","--"],["_","__"],["?","~q"],["%","~p"],[" ","%20"],["''","\""]]
+		rep = [["-","--"],["_","__"],["?","~q"],["%","~p"],[" ","%20"],["''","\""],["/","~s"]]
 		for s in rep:
 			line1 = line1.replace(s[0],s[1])
 			line2 = line2.replace(s[0],s[1])
