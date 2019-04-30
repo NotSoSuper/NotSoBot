@@ -1,4 +1,5 @@
-# NotSoBot
+# NotSoFork
+## For CS362 (Software Engineering 2) @ OSU
 ### Requires:
 - Python 3.5
 - [discord.py](https://github.com/rapptz/discord.py)
