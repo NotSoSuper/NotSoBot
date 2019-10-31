@@ -3,6 +3,8 @@
 
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/NotSoSuper/NotSoBot/graphs/commit-activity)
 [![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/NotSoSuper/NotSoBot/blob/master/LICENSE)
+
+[![GitHub forks](https://img.shields.io/github/forks/Naereen/StrapDown.js.svg?style=social&label=Fork&maxAge=2592000)](https://github.com/NotSoSuper/NotSoBot/network)
 ### Requires:
 - Python 3.5
 - [discord.py](https://github.com/rapptz/discord.py)
