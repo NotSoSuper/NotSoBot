@@ -4,7 +4,7 @@
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/NotSoSuper/NotSoBot/graphs/commit-activity)
 [![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/NotSoSuper/NotSoBot/blob/master/LICENSE)
 [![GitHub contributors](https://img.shields.io/github/contributors/Naereen/StrapDown.js.svg)](https://github.com/NotSoSuper/NotSoBot/graphs/contributors)
-
+[![GitHub issues](https://img.shields.io/github/issues/Naereen/StrapDown.js.svg)](https://github.com/NotSoSuper/NotSoBot/issues)
 ### Requires:
 - Python 3.5
 - [discord.py](https://github.com/rapptz/discord.py)
