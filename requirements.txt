@@ -25,7 +25,7 @@ Jinja2==2.8
 jpglitch==0.2
 jsondatabase==0.1.6
 jsonpickle==0.9.3
-lxml==3.7.1
+lxml==4.6.2
 MarkupSafe==0.23
 matplotlib==1.5.3
 more-itertools==2.4.1
