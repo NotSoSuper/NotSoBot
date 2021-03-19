@@ -21,7 +21,7 @@ imgurpython==1.1.7
 inflect==0.2.5
 itsdangerous==0.24
 jaraco.itertools==2.0
-Jinja2==2.8
+Jinja2==2.11.3
 jpglitch==0.2
 jsondatabase==0.1.6
 jsonpickle==0.9.3
