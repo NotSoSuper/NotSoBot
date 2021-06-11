@@ -57,7 +57,7 @@ tinycss==0.4
 urbandict==0.5
 vdf==2.1
 Wand==0.4.4
-websockets==3.2
+websockets==9.1
 Werkzeug==0.11.11
 wolframalpha==3.0
 wordcloud==1.2.1
