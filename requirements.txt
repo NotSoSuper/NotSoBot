@@ -31,7 +31,7 @@ matplotlib==1.5.3
 more-itertools==2.4.1
 multidict==2.1.4
 nltk==3.2.1
-numpy==1.11.3
+numpy==1.22.0
 Pillow==3.4.2
 pyasn1==0.1.9
 pycparser==2.17
