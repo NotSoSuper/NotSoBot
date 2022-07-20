@@ -501,6 +501,7 @@ class Utils(Cog):
 
 	@commands.command(pass_context=True)
 	@commands.cooldown(1, 10)
+	@commands.is_nsfw()
 	async def screenshot(self, ctx, *, url:str):
 			try:
 				x = await self.bot.say("ok, processing")
